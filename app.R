@@ -61,6 +61,33 @@ site.data_site1 <- readRDS(paste0(location_files_for_app,site_1,"/", "site_info.
 site.data_site2 <- readRDS(paste0(location_files_for_app,site_2,"/", "site_info.rds"))
 
 ###############################################################################
+
+growth_curve_data_site1_yr1 <- 
+  read_csv(
+    paste0(location_files_for_app,site_1,"/", yr1, "/", "ndvi_growth_curves_", yr1, ".csv" )) %>% 
+  dplyr::mutate (site = site_1,
+                 year = yr1)
+
+growth_curve_data_site1_yr2 <- 
+  read_csv(
+    paste0(location_files_for_app,site_1,"/", yr2, "/", "ndvi_growth_curves_", yr2, ".csv" )) %>% 
+  dplyr::mutate (site = site_1,
+                 year = yr2)
+
+
+growth_curve_data_site2_yr1 <- 
+  read_csv(
+    paste0(location_files_for_app,site_2,"/", yr1, "/", "ndvi_growth_curves_", yr1, ".csv" )) %>% 
+  dplyr::mutate (site = site_2,
+                 year = yr1)
+
+growth_curve_data_site1_yr2 <- 
+  read_csv(
+    paste0(location_files_for_app,site_2,"/", yr2, "/", "ndvi_growth_curves_", yr2, ".csv" )) %>% 
+  dplyr::mutate (site = site_2,
+                 year = yr2)
+
+###############################################################################
 ### UI #####
 ###############################################################################
 ui <- dashboardPage(
@@ -88,9 +115,9 @@ ui <- dashboardPage(
                          ),
                          fluidRow(
                            box(width = 4,
-                               selectInput("soil_layer", "Select Soil Layer to Plot", choices = names(site1_soil.rast))),
+                               selectInput("soil_layer_site1", "Select Soil Layer to Plot", choices = names(site1_soil.rast))),
                            box(width = 4,
-                               selectInput("ndvi_date", "Select NDVI Date", choices = names(NDVI_yr2_site1))),
+                               selectInput("ndvi_date_site1", "Select NDVI Date", choices = names(NDVI_yr2_site1))),
                            box(width = 4,
                                radioButtons("ndvi_scale_type", "NDVI Scale:",
                                             choices = c("Fixed (0–1)" = "fixed",
@@ -102,7 +129,7 @@ ui <- dashboardPage(
                            valueBoxOutput("plant_date")
                          ),
                          fluidRow(
-                           box(width = 6, plotlyOutput("ndvi_curve_plot"))
+                           box(width = 12, plotlyOutput("ndvi_curve_plot_site1_yr2"))
                          )
               
                 
@@ -121,9 +148,9 @@ ui <- dashboardPage(
                          ),
                          fluidRow(
                            box(width = 4,
-                               selectInput("soil_layer", "Select Soil Layer to Plot", choices = names(site2_soil.rast))),
+                               selectInput("soil_layer_site2", "Select Soil Layer to Plot", choices = names(site2_soil.rast))),
                            box(width = 4,
-                               selectInput("ndvi_date", "Select NDVI Date", choices = names(NDVI_yr2_site2))),
+                               selectInput("ndvi_date_site2", "Select NDVI Date", choices = names(NDVI_yr2_site2))),
                            box(width = 4,
                                radioButtons("ndvi_scale_type", "NDVI Scale:",
                                             choices = c("Fixed (0–1)" = "fixed",
@@ -135,7 +162,7 @@ ui <- dashboardPage(
                            valueBoxOutput("plant_date")
                          ),
                          fluidRow(
-                           box(width = 6, plotlyOutput("ndvi_curve_plot"))
+                           box(width = 12, plotlyOutput("ndvi_curve_plot_site2_yr2"))
                          )
                 ),
                 
@@ -201,74 +228,149 @@ ui <- dashboardPage(
       fitBounds(lng1 = xmin, lat1 = ymin, lng2 = xmax, lat2 = ymax)
   })
   
+
+
+################################################################################
+### Reactive code 
+################################################################################
+## reactive for site 1 NDVI
+  observe({
+    req(input$ndvi_date_site1)
+    selected_raster <- NDVI_yr2_site1[[input$ndvi_date_site1]]
+    leaflet_raster_site1 <- raster(selected_raster)  # terra → raster for leaflet
+
+    # Determine scale type
+    if (input$ndvi_scale_type == "fixed") {
+      pal <- colorNumeric(palette = "YlGn", domain = c(0, 1), na.color = "transparent")
+      legend_vals <- c(0, 1)
+    } else {
+      raster_vals <- values(leaflet_raster_site1)
+      pal <- colorNumeric(palette = "YlGn", domain = raster_vals, na.color = "transparent")
+      legend_vals <- raster_vals
+    }
+
+    leafletProxy("map_site1") %>%
+      clearImages() %>%
+      clearControls() %>%
+      addRasterImage(leaflet_raster_site1, colors = pal, opacity = 0.6, project = TRUE) %>%
+      addLegend(pal = pal, values = legend_vals, title = "NDVI", labFormat = labelFormat())
+  })
+  
+## reactive for site 1 Soil layer
+  observe({
+    req(input$soil_layer_site1)
+    selected_soil <- site1_soil.rast[[input$soil_layer_site1]]
+    soil_raster_site1 <- raster(selected_soil)
+
+    # Create color palette for soil layer
+    soil_pal <- colorNumeric(palette = "viridis", domain = values(soil_raster_site1), na.color = "transparent")
+
+    leafletProxy("map_site1") %>%
+      clearGroup("Soil Layer") %>%
+      clearControls() %>%
+      addRasterImage(soil_raster_site1, colors = soil_pal, opacity = 0.7, project = TRUE, group = "Soil Layer") %>%
+      addLegend(pal = soil_pal, values = values(soil_raster_site1), title = input$soil_layer_site1,
+                position = "bottomleft", group = "Soil Layer")
+  })
+
+  
+################################################################################ 
+## reactive for site 2 NDVI
+  observe({
+    req(input$ndvi_date_site2)
+    selected_raster <- NDVI_yr2_site2[[input$ndvi_date_site2]]
+    leaflet_raster_site2 <- raster(selected_raster)  # terra → raster for leaflet
+    
+    # Determine scale type
+    if (input$ndvi_scale_type == "fixed") {
+      pal <- colorNumeric(palette = "YlGn", domain = c(0, 1), na.color = "transparent")
+      legend_vals <- c(0, 1)
+    } else {
+      raster_vals <- values(leaflet_raster_site2)
+      pal <- colorNumeric(palette = "YlGn", domain = raster_vals, na.color = "transparent")
+      legend_vals <- raster_vals
+    }
+    
+    leafletProxy("map_site2") %>%
+      clearImages() %>%
+      clearControls() %>%
+      addRasterImage(leaflet_raster_site2, colors = pal, opacity = 0.6, project = TRUE) %>%
+      addLegend(pal = pal, values = legend_vals, title = "NDVI", labFormat = labelFormat())
+  })
+  
+  ## reactive for site 2 Soil layer
+  observe({
+    req(input$soil_layer_site2)
+    selected_soil <- site2_soil.rast[[input$soil_layer_site2]]
+    soil_raster_site2 <- raster(selected_soil)
+    
+    # Create color palette for soil layer
+    soil_pal <- colorNumeric(palette = "viridis", domain = values(soil_raster_site2), na.color = "transparent")
+    
+    leafletProxy("map_site2") %>%
+      clearGroup("Soil Layer") %>%
+      clearControls() %>%
+      addRasterImage(soil_raster_site2, colors = soil_pal, opacity = 0.7, project = TRUE, group = "Soil Layer") %>%
+      addLegend(pal = soil_pal, values = values(soil_raster_site2), title = input$soil_layer_site1,
+                position = "bottomleft", group = "Soil Layer")
+  })
+ 
+################################################################################ 
+## Growth curves
+################################################################################
+####for site 1 year 2   
+output$ndvi_curve_plot_site1_yr2 <- renderPlotly({
+dat.clean <- growth_curve_data_site1_yr2  
+
+
+p <- ggplot(dat.clean, aes(x = dap, y = ndvi, color = treat_desc, group = treat_desc)) +
+  # Bold black control line
+  geom_smooth(data = subset(dat.clean, treat_desc == "Control"),
+              method = "gam", span = 0.3, se = FALSE,
+              color = "black", size = 1.5) +
+  # Other treatments
+  geom_smooth(data = subset(dat.clean, treat_desc != "Control"),
+              method = "gam", span = 0.3, se = FALSE) +
+  labs(
+    title = "NDVI Timeseries (2025)",
+    x = "Days after planting",
+    y = "Average NDVI",
+    color = "Treatment"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+ggplotly(p)  
+}) 
+  
+
+  
+####for site 2 year 2   
+  output$ndvi_curve_plot_site2_yr2 <- renderPlotly({
+    dat.clean <- growth_curve_data_site1_yr2  
+    
+    
+    p <- ggplot(dat.clean, aes(x = dap, y = ndvi, color = treat_desc, group = treat_desc)) +
+      # Bold black control line
+      geom_smooth(data = subset(dat.clean, treat_desc == "Control"),
+                  method = "gam", span = 0.3, se = FALSE,
+                  color = "black", size = 1.5) +
+      # Other treatments
+      geom_smooth(data = subset(dat.clean, treat_desc != "Control"),
+                  method = "gam", span = 0.3, se = FALSE) +
+      labs(
+        title = "NDVI Timeseries (2025)",
+        x = "Days after planting",
+        y = "Average NDVI",
+        color = "Treatment"
+      ) +
+      theme_minimal() +
+      theme(plot.title = element_text(hjust = 0.5))
+    ggplotly(p)  
+  }) 
+    
  } #end of server
 
 
-
-
-  # observe({
-  #   req(input$ndvi_date)
-  #   selected_raster <- NDVI_yr2[[input$ndvi_date]]
-  #   leaflet_raster <- raster(selected_raster)  # terra → raster for leaflet
-  # 
-  #   # Determine scale type
-  #   if (input$ndvi_scale_type == "fixed") {
-  #     pal <- colorNumeric(palette = "YlGn", domain = c(0, 1), na.color = "transparent")
-  #     legend_vals <- c(0, 1)
-  #   } else {
-  #     raster_vals <- values(leaflet_raster)
-  #     pal <- colorNumeric(palette = "YlGn", domain = raster_vals, na.color = "transparent")
-  #     legend_vals <- raster_vals
-  #   }
-  # 
-  #   leafletProxy("map") %>%
-  #     clearImages() %>%
-  #     clearControls() %>%
-  #     addRasterImage(leaflet_raster, colors = pal, opacity = 0.6, project = TRUE) %>%
-  #     addLegend(pal = pal, values = legend_vals, title = "NDVI", labFormat = labelFormat())
-  # })
-  # 
-  # observe({
-  #   req(input$soil_layer)
-  #   selected_soil <- site1_soil.rast[[input$soil_layer]]
-  #   soil_raster <- raster(selected_soil)
-  # 
-  #   # Create color palette for soil layer
-  #   soil_pal <- colorNumeric(palette = "viridis", domain = values(soil_raster), na.color = "transparent")
-  # 
-  #   leafletProxy("map") %>%
-  #     clearGroup("Soil Layer") %>%
-  #     clearControls() %>%
-  #     addRasterImage(soil_raster, colors = soil_pal, opacity = 0.7, project = TRUE, group = "Soil Layer") %>%
-  #     addLegend(pal = soil_pal, values = values(soil_raster), title = input$soil_layer,
-  #               position = "bottomleft", group = "Soil Layer")
-  # })
-  # 
- 
-#   
-#   
-#   
-#   output$ndvi_curve_plot <- renderPlotly({
-#     dat.clean <- site.data$`growth curve data`  # Replace with your actual tibble name
-#     
-#     p <- ggplot(dat.clean, aes(x = x, y = value, color = treat_desc, group = treat_desc)) +
-#       # Bold black control line
-#       geom_smooth(data = subset(dat.clean, treat_desc == "Control"), 
-#                   method = "gam", span = 0.3, se = FALSE, 
-#                   color = "black", size = 1.5) +  
-#       # Other treatments
-#       geom_smooth(data = subset(dat.clean, treat_desc != "Control"), 
-#                   method = "gam", span = 0.3, se = FALSE) +  
-#       labs(
-#         title = "NDVI Timeseries",
-#         x = "Days after planting",
-#         y = "Average NDVI",
-#         color = "Treatment"
-#       ) +
-#       theme_minimal() +
-#       theme(plot.title = element_text(hjust = 0.5))
-#     
-#     ggplotly(p)
 #   })
 #   
 #   

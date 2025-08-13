@@ -57,6 +57,16 @@ site.data_site1 <- readRDS(paste0(location_files_for_app,site_1,"/", "site_info.
 site.data_site2 <- readRDS(paste0(location_files_for_app,site_2,"/", "site_info.rds"))
 
 ###############################################################################
+#paste0(location_files_for_app,site_1,"/", yr2, "/", "ndvi_growth_curves_", yr2, ".csv" )
+growth_curve_data_site1_yr2 <- 
+  read_csv(
+    paste0(location_files_for_app,site_1,"/", yr2, "/", "ndvi_growth_curves_", yr2, ".csv" )) %>% 
+    dplyr::mutate (site = site_1,
+                 year = yr2)
+
+growth_curve_data_site1_yr2
+
+
 
 #map is not rendering - why?
 
@@ -68,7 +78,7 @@ test_trial_plan <-  site.data_site1$trial_plan
 test_trial_plan
 plot(test_trial_plan)
   
-  #output$map <- renderLeaflet({
+  output$map <- renderLeaflet({
     map <- Leaflet(
     bbox <- st_bbox(site.data_site1$boundary)
     xmin <- as.numeric(bbox["xmin"])
@@ -93,3 +103,36 @@ plot(test_trial_plan)
       ) %>%
       fitBounds(lng1 = xmin, lat1 = ymin, lng2 = xmax, lat2 = ymax)
 
+###############################################################################
+str(growth_curve_data_site1_yr2)
+
+
+    
+      
+        
+        dat.clean <- growth_curve_data_site1_yr2  # Replace with your actual tibble name
+        dat.clean
+        str(dat.clean)
+        
+        p <- ggplot(dat.clean, aes(x = dap, y = ndvi, color = treat_desc, group = treat_desc)) +
+          # Bold black control line
+          geom_smooth(data = subset(dat.clean, treat_desc == "Control"),
+                      method = "gam", span = 0.3, se = FALSE,
+                      color = "black", size = 1.5) +
+          # Other treatments
+          geom_smooth(data = subset(dat.clean, treat_desc != "Control"),
+                      method = "gam", span = 0.3, se = FALSE) +
+          labs(
+            title = "NDVI Timeseries",
+            subtitle = "test",
+            #subtitle = paste0("Site: ", dat.clean$site, "Year: ",  dat.clean$year ),
+            x = "Days after planting",
+            y = "Average NDVI",
+            color = "Treatment"
+          ) +
+          theme_minimal() +
+          theme(plot.title = element_text(hjust = 0.5))
+        p
+
+        ggplotly(p)
+      #})
