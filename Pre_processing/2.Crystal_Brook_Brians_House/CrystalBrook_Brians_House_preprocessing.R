@@ -12,9 +12,12 @@ suppressPackageStartupMessages({
   library(stringr)
 })
 
+# ====================== Site ======================
+site <- "2.Crystal_Brook_Brians_House"
+
 # ====================== PATHS ======================
-readDir <- "//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}/work/Output-1/2.Crystal_Brook_Brians_House"
-saveDir <- "//fs1-cbr.nexus.csiro.au/{lw-soildatarepo}/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/CrystalBrook_Brians_House"
+readDir <- paste0("//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}/work/Output-1/", site)
+saveDir <-  paste0("//fs1-cbr.nexus.csiro.au/{lw-soildatarepo}/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/", site)
 #dir_create(saveDir)
 
 ################################################################################

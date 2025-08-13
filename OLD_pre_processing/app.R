@@ -14,8 +14,9 @@ library(sf)
 
 
 #Load Site Data
-headDir <- "//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}/work/Output-1/SiteViewer"
-headDir <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current"
+#headDir <- "//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}/work/Output-1/SiteViewer"
+#headDir <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current"
+headDir <- "C:/Users/ouz001/working_from_home_post_Sep2022/sandy_soils_output1_app/pre_processing"
 
 soil.rast <- rast(paste0(headDir,'/Files/Walpeup/Walpeup_soil.tif'))
 zones.rast <- rast(paste0(headDir,'/Files/Walpeup/Walpeup_zones.tif'))
