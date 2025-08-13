@@ -11,9 +11,12 @@ suppressPackageStartupMessages({
   library(fs)
 })
 
+
+# ====================== Site ======================
+site <- "1.Walpeup_MRS125"
 # ====================== PATHS ======================
-readDir <- "//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}/work/Output-1/1.Walpeup_MRS125"
-saveDir <- "//fs1-cbr.nexus.csiro.au/{lw-soildatarepo}/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/Walpeup_MRS125"
+readDir <- paste0("//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}/work/Output-1/", site)
+saveDir <-  paste0("//fs1-cbr.nexus.csiro.au/{lw-soildatarepo}/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/", site)
 #dir_create(saveDir)
 
 ################################################################################
