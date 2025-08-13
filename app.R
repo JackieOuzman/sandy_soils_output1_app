@@ -14,12 +14,21 @@ library(sf)
 
 
 #Load Site Data
-headDir <- "//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}/work/Output-1/SiteViewer"
-headDir <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current"
+                                               
 
-soil.rast <- rast(paste0(headDir,'/Files/Walpeup/Walpeup_soil.tif'))
-zones.rast <- rast(paste0(headDir,'/Files/Walpeup/Walpeup_zones.tif'))
-ndvi.rast <- rast(paste0(headDir,'/Files/Walpeup/Walpeup_ndvi.tif'))
+#headDir <- "//fs1-cbr.nexus.csiro.au/{lw-soildatarepo}/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
+headDir <-                                  "/datasets/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
+
+site_1 <-"1.Walpeup_MRS125"
+yr1 <- "2024"
+yr2 <- "2025"
+
+site1_soil.rast <- rast(paste0(headDir,site_1,"/","soil.tif"))
+site1_zones.rast <- rast(paste0(headDir,site_1,"/","zones.tif"))
+
+
+site1_yr2_ndvi.rast <-   rast(paste0(headDir,site_1,"/", yr2,"/", "ndvi_stack_", yr2,".rds")
+                         rast(paste0(headDir,'/Files/Walpeup/Walpeup_ndvi.tif'))
 
 site.data <- readRDS(paste0(headDir,'/Files/Walpeup/Walpeup_dat.rds'))
 
