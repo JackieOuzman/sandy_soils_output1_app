@@ -1,15 +1,95 @@
 
+library(shiny)
+library(shinydashboard)
+#library(htmltools)
+library(leaflet)
+library(plotly)
+library(readr)
+library(dplyr)
+library(terra)
+library(raster)  # Needed for rendering raster in leaflet
+library(sf)
 
-site1_soil.rast <- rast(paste0(headDir,site_1,"/","soil.tif"))
-paste0(headDir,site_1,"/","soil.tif")
+###############################################################################
+#### Central location of the files the app will draw on - id the directory here ####
+###############################################################################
+
+node_name <- Sys.info()["nodename"]
+
+if (node_name=="TOPAZ-GW" ) {
+  location_files_for_app <- 'B:/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/'
+  
+} else {
+  location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"} # I am not sure this will work?
+
+###############################################################################
+#### Site details #####
+###############################################################################
+site_1 <-"1.Walpeup_MRS125"
+site_2 <-"2.Crystal_Brook_Brians_House"
+yr1 <- "2024"
+yr2 <- "2025"
+
+###############################################################################
+#### import files #####
+###############################################################################
+site1_soil.rast <- rast(paste0(location_files_for_app,site_1,"/","soil.tif"))
+site1_zones.rast <- rast(paste0(location_files_for_app,site_1,"/","zones.tif"))
+
+site2_soil.rast <- rast(paste0(location_files_for_app,site_2,"/","soil.tif"))
+site2_zones.rast <- rast(paste0(location_files_for_app,site_2,"/","zones.tif"))
+
+###############################################################################
+NDVI_most_recent_site1 <- readRDS(paste0(location_files_for_app,site_1,"/", yr2, "/", "ndvi_stack_", yr2, ".rds" ))
+
+NDVI_yr1_site1 <- subset(NDVI_most_recent_site1, grep(yr1, names(NDVI_most_recent_site1))) #filter by a pattern in layer names
+NDVI_yr2_site1 <- subset(NDVI_most_recent_site1, grep(yr2, names(NDVI_most_recent_site1))) #filter by a pattern in layer names
 
 
-"             atasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/1.Walpeup_MRS125/soil.tif
-"\\fs1-cbr.nexus.csiro.au\{lw-soildatarepo}\work\Shiny\Apps\Stirling\GRDCSandySoilsII\Output1Viewer\Current\Files\1.Walpeup_MRS125\soil.tif"
+NDVI_most_recent_site2 <- readRDS(paste0(location_files_for_app,site_2,"/", yr2, "/", "ndvi_stack_", yr2, ".rds" ))
 
-my_object <- readRDS(paste0(headDir,site_1,"/", yr2,"/", "ndvi_stack_", yr2,".rds"))
-paste0(headDir,site_1,"/", yr2,"/", "ndvi_stack_", yr2,".rds")
-paste0(headDir,site_1,"/","zones.tif")
+NDVI_yr1_site2 <- subset(NDVI_most_recent_site2, grep(yr1, names(NDVI_most_recent_site2))) #filter by a pattern in layer names
+NDVI_yr2_site2 <- subset(NDVI_most_recent_site2, grep(yr2, names(NDVI_most_recent_site2))) #filter by a pattern in layer names
+
+###############################################################################
+
+site.data_site1 <- readRDS(paste0(location_files_for_app,site_1,"/", "site_info.rds"))
+site.data_site2 <- readRDS(paste0(location_files_for_app,site_2,"/", "site_info.rds"))
+
+###############################################################################
+
+#map is not rendering - why?
+
+test_boundary <-  site.data_site1$boundary
+test_boundary
+plot(test_boundary)
+
+test_trial_plan <-  site.data_site1$trial_plan
+test_trial_plan
+plot(test_trial_plan)
+  
+  #output$map <- renderLeaflet({
+    map <- Leaflet(
+    bbox <- st_bbox(site.data_site1$boundary)
+    xmin <- as.numeric(bbox["xmin"])
+    xmax <- as.numeric(bbox["xmax"])
+    ymin <- as.numeric(bbox["ymin"])
+    ymax <- as.numeric(bbox["ymax"]))
 
 
-headDir <- "/datasets/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
+    
+    leaflet() %>%
+      addProviderTiles("Esri.WorldImagery") %>%
+      addPolygons(data = site.data_site1$boundary, color = "blue", weight = 2, fill = FALSE, group = "Boundary") %>%
+      addPolygons(data = site.data_site1$`trial plan`,
+                  color = "orange",
+                  weight = 2,
+                  fillOpacity = 0,
+                  label = ~treat_desc,
+                  group = "Treatments") %>%
+      addLayersControl(
+        overlayGroups = c("Boundary", "Treatments", "Soil Layer"),
+        options = layersControlOptions(collapsed = FALSE)
+      ) %>%
+      fitBounds(lng1 = xmin, lat1 = ymin, lng2 = xmax, lat2 = ymax)
+
