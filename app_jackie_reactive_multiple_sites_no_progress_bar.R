@@ -14,13 +14,13 @@ library(sf)
 
 node_name <- Sys.info()["nodename"]
 
-if (node_name=="TOPAZ-GW" ) {
-  location_files_for_app <- 'B:/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/'
-} else {
-  location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
-}
+# if (node_name=="TOPAZ-GW" ) {
+#   location_files_for_app <- 'B:/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/'
+# } else {
+#   location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
+# }
 
-#location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
+location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
 
 ###############################################################################
 #### Site details - define all sites here ####
@@ -131,27 +131,27 @@ server <- function(input, output, session) {
     current_site <- sites[[input$site_select]]
     
     # Import files for selected site
-     withProgress(message = 'Loading site data...', {
+    # withProgress(message = 'Loading site data...', {
     
-     incProgress(0.1, detail = "Loading raster files...")
+    # incProgress(0.1, detail = "Loading raster files...")
     # Soil and zones raster
     soil.rast <- rast(paste0(location_files_for_app, current_site, "/", "soil.tif"))
     zones.rast <- rast(paste0(location_files_for_app, current_site, "/", "zones.tif"))
     
-     incProgress(0.2, detail = "Loading NDVI data...")
+    # incProgress(0.2, detail = "Loading NDVI data...")
     # NDVI data
     NDVI_most_recent <- readRDS(paste0(location_files_for_app, current_site, "/", yr2, "/", "ndvi_stack_", yr2, ".rds"))
     NDVI_yr1 <- subset(NDVI_most_recent, grep(yr1, names(NDVI_most_recent)))
     NDVI_yr2 <- subset(NDVI_most_recent, grep(yr2, names(NDVI_most_recent)))
     
-     incProgress(0.3, detail = "Loading site information...")
+    # incProgress(0.3, detail = "Loading site information...")
     # Site data
     site.data <- readRDS(paste0(location_files_for_app, current_site, "/", "site_info.rds"))
     site.data_df <- as.data.frame(site.data$seasons)
     site.data_yr1_df <- dplyr::filter(site.data_df, year == 2024)
     site.data_yr2_df <- dplyr::filter(site.data_df, year == 2025)
     
-     incProgress(0.5, detail = "Loading growth curve data...")
+    # incProgress(0.5, detail = "Loading growth curve data...")
     # Growth curve data
     growth_curve_data_yr1 <- 
       read_csv(paste0(location_files_for_app, current_site, "/", yr1, "/", "ndvi_growth_curves_", yr1, ".csv"), show_col_types = FALSE) %>% 
@@ -161,8 +161,8 @@ server <- function(input, output, session) {
       read_csv(paste0(location_files_for_app, current_site, "/", yr2, "/", "ndvi_growth_curves_", yr2, ".csv"), show_col_types = FALSE) %>% 
       dplyr::mutate(site = current_site, year = yr2)
     
-     incProgress(1, detail = "Data loading complete!")
-     })
+    # incProgress(1, detail = "Data loading complete!")
+    # })
     
     # Return list of all data
     list(
