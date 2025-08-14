@@ -60,6 +60,15 @@ NDVI_yr2_site2 <- subset(NDVI_most_recent_site2, grep(yr2, names(NDVI_most_recen
 site.data_site1 <- readRDS(paste0(location_files_for_app,site_1,"/", "site_info.rds"))
 site.data_site2 <- readRDS(paste0(location_files_for_app,site_2,"/", "site_info.rds"))
 
+
+site.data_site1_df <- as.data.frame(site.data_site1$seasons)        
+site.data_site1__yr1_df <- dplyr::filter(site.data_site1_df, year == 2024) 
+site.data_site1__yr2_df <- dplyr::filter(site.data_site1_df, year == 2025)
+
+site.data_site2_df <- as.data.frame(site.data_site2$seasons)        
+site.data_site2__yr1_df <- dplyr::filter(site.data_site2_df, year == 2024) 
+site.data_site2__yr2_df <- dplyr::filter(site.data_site2_df, year == 2025)
+
 ###############################################################################
 
 growth_curve_data_site1_yr1 <- 
@@ -111,6 +120,11 @@ ui <- dashboardPage(
                 id = "season_tabs_walpeup", width = 12,
                 tabPanel("All",
                          fluidRow(
+                           valueBoxOutput("crop_type_site1_yr1"),
+                           valueBoxOutput("crop_type_site1_yr2")
+                         ),
+                        
+                          fluidRow(
                            box(width = 12, leafletOutput("map_site1", height = 400))
                          ),
                          fluidRow(
@@ -124,10 +138,7 @@ ui <- dashboardPage(
                                                         "Dynamic (per image)" = "dynamic"),
                                             selected = "fixed"))
                          ),
-                         fluidRow(
-                           valueBoxOutput("crop_type"),
-                           valueBoxOutput("plant_date")
-                         ),
+                        
                          fluidRow(
                            box(width = 12, plotlyOutput("ndvi_curve_plot_site1_yr2"))
                          )
@@ -144,6 +155,12 @@ ui <- dashboardPage(
                 id = "season_tabs_crystal", width = 12,
                 tabPanel("All",
                          fluidRow(
+                           valueBoxOutput("crop_type_site2_yr1"),
+                           valueBoxOutput("crop_type_site2_yr2")
+                         ),
+                        
+                           
+                         fluidRow(
                            box(width = 12, leafletOutput("map_site2", height = 400))
                          ),
                          fluidRow(
@@ -157,10 +174,7 @@ ui <- dashboardPage(
                                                         "Dynamic (per image)" = "dynamic"),
                                             selected = "fixed"))
                          ),
-                         fluidRow(
-                           valueBoxOutput("crop_type"),
-                           valueBoxOutput("plant_date")
-                         ),
+                         
                          fluidRow(
                            box(width = 12, plotlyOutput("ndvi_curve_plot_site2_yr2"))
                          )
@@ -368,33 +382,51 @@ ggplotly(p)
     ggplotly(p)  
   }) 
     
+################################################################################
+## Info boxes site1
+  output$crop_type_site1_yr1 <- renderValueBox({
+    valueBox(
+      value = site.data_site1__yr1_df$crop_type,
+      subtitle = paste0("Planted: ", site.data_site1__yr1_df$plant_date),
+      icon = icon("seedling"),
+      color = "green"
+    )
+  })
+  
+output$crop_type_site1_yr2 <- renderValueBox({
+    valueBox(
+      value = site.data_site1__yr2_df$crop_type,
+      subtitle = paste0("Planted: ", site.data_site1__yr2_df$plant_date),
+      icon = icon("seedling"),
+      color = "green"
+    )
+  })
+
+ 
+## Info boxes site2
+  
+output$crop_type_site2_yr1 <- renderValueBox({
+    valueBox(
+      value = site.data_site2__yr1_df$crop_type,
+      subtitle = paste0("Planted: ", site.data_site2__yr1_df$plant_date),
+      icon = icon("seedling"),
+      color = "green"
+    )
+  })
+  
+  output$crop_type_site2_yr2 <- renderValueBox({
+    valueBox(
+      value = site.data_site2__yr2_df$crop_type,
+      subtitle = paste0("Planted: ", site.data_site2__yr2_df$plant_date),
+      icon = icon("seedling"),
+      color = "green"
+    )
+  })
+  
+ 
+  
+  
  } #end of server
-
-
-#   })
-#   
-#   
-#   output$crop_type <- renderValueBox({
-#     valueBox(
-#       value = site.data$`crop type`,
-#       subtitle = "Crop Type",
-#       icon = icon("seedling"),
-#       color = "green"
-#     )
-#   })
-#   
-#   output$plant_date <- renderValueBox({
-#     valueBox(
-#       value = site.data$`plant date`,
-#       subtitle = "Plant Date",
-#       icon = icon("calendar-alt"),
-#       color = "blue"
-#     )
-#   })
-#   
-#   
-#   
-
 
 # Run the app
 shinyApp(ui, server)

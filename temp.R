@@ -116,11 +116,11 @@ str(growth_curve_data_site1_yr2)
         
         p <- ggplot(dat.clean, aes(x = dap, y = ndvi, color = treat_desc, group = treat_desc)) +
           # Bold black control line
-          geom_smooth(data = subset(dat.clean, treat_desc == "Control"),
+          geom_smooth(data = subset(dat.clean, grepl("control", treat_desc, ignore.case = TRUE)),,
                       method = "gam", span = 0.3, se = FALSE,
                       color = "black", size = 1.5) +
           # Other treatments
-          geom_smooth(data = subset(dat.clean, treat_desc != "Control"),
+          geom_smooth(data = subset(dat.clean, !grepl("control", treat_desc, ignore.case = TRUE)),
                       method = "gam", span = 0.3, se = FALSE) +
           labs(
             title = "NDVI Timeseries",
@@ -136,3 +136,31 @@ str(growth_curve_data_site1_yr2)
 
         ggplotly(p)
       #})
+
+        
+        
+###############################################################################
+str(site.data_site1)        
+
+
+        
+site.data_site1_df <- as.data.frame(site.data_site1$seasons)        
+site.data_site1__yr2_df <- 
+  dplyr::filter(site.data_site1_df, year == 2025)         
+        
+          output$crop_type <- renderValueBox({
+            valueBox(
+              value = site.data_site1__yr2_df$crop_type,
+              subtitle = "Crop Type 2025",
+              icon = icon("seedling"),
+              color = "green"
+            )
+          })
+
+          output$plant_date <- renderValueBox({
+            valueBox(
+              value = site.data_site1__yr2_df$plant_date,
+              subtitle = "Plant Date 2025",
+              icon = icon("calendar-alt"),
+              color = "blue"
+            )
