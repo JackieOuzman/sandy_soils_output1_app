@@ -141,8 +141,8 @@ server <- function(input, output, session) {
      incProgress(0.2, detail = "Loading NDVI data...")
     # NDVI data
     NDVI_most_recent <- readRDS(paste0(location_files_for_app, current_site, "/", yr2, "/", "ndvi_stack_", yr2, ".rds"))
-    NDVI_yr1 <- subset(NDVI_most_recent, grep(yr1, names(NDVI_most_recent)))
-    NDVI_yr2 <- subset(NDVI_most_recent, grep(yr2, names(NDVI_most_recent)))
+    # NDVI_yr1 <- subset(NDVI_most_recent, grep(yr1, names(NDVI_most_recent)))
+    # NDVI_yr2 <- subset(NDVI_most_recent, grep(yr2, names(NDVI_most_recent)))
     
      incProgress(0.3, detail = "Loading site information...")
     # Site data
@@ -153,9 +153,9 @@ server <- function(input, output, session) {
     
      incProgress(0.5, detail = "Loading growth curve data...")
     # Growth curve data
-    growth_curve_data_yr1 <- 
-      read_csv(paste0(location_files_for_app, current_site, "/", yr1, "/", "ndvi_growth_curves_", yr1, ".csv"), show_col_types = FALSE) %>% 
-      dplyr::mutate(site = current_site, year = yr1)
+    # growth_curve_data_yr1 <- 
+    #   read_csv(paste0(location_files_for_app, current_site, "/", yr1, "/", "ndvi_growth_curves_", yr1, ".csv"), show_col_types = FALSE) %>% 
+    #   dplyr::mutate(site = current_site, year = yr1)
     
     growth_curve_data_yr2 <- 
       read_csv(paste0(location_files_for_app, current_site, "/", yr2, "/", "ndvi_growth_curves_", yr2, ".csv"), show_col_types = FALSE) %>% 
@@ -168,12 +168,13 @@ server <- function(input, output, session) {
     list(
       soil_rast = soil.rast,
       zones_rast = zones.rast,
-      ndvi_yr1 = NDVI_yr1,
-      ndvi_yr2 = NDVI_yr2,
+      #ndvi_yr1 = NDVI_yr1,
+      #ndvi_yr2 = NDVI_yr2,
+      NDVI_most_recent,
       site_data = site.data,
       site_data_yr1 = site.data_yr1_df,
       site_data_yr2 = site.data_yr2_df,
-      growth_data_yr1 = growth_curve_data_yr1,
+      #growth_data_yr1 = growth_curve_data_yr1,
       growth_data_yr2 = growth_curve_data_yr2,
       site_name = current_site
     )
@@ -191,10 +192,10 @@ server <- function(input, output, session) {
   # Update NDVI date choices when site changes
   observe({
     site_data <- current_site_data()
-    req(site_data$ndvi_yr2)
+    req(site_data$NDVI_most_recent)
     updateSelectInput(session, "ndvi_date",
-                      choices = names(site_data$ndvi_yr2),
-                      selected = names(site_data$ndvi_yr2)[1])
+                      choices = names(site_data$NDVI_most_recent),
+                      selected = names(site_data$NDVI_most_recent)[1])
   })
   
   # Render map
@@ -229,14 +230,14 @@ server <- function(input, output, session) {
   observe({
     req(input$ndvi_date)
     site_data <- current_site_data()
-    req(site_data$ndvi_yr2)
+    req(site_data$NDVI_most_recent)
     
     # Check if the selected NDVI date exists in the current site's data
-    if (!input$ndvi_date %in% names(site_data$ndvi_yr2)) {
+    if (!input$ndvi_date %in% names(site_data$NDVI_most_recent)) {
       return()  # Exit if the layer doesn't exist
     }
     
-    selected_raster <- site_data$ndvi_yr2[[input$ndvi_date]]
+    selected_raster <- site_data$NDVI_most_recent[[input$ndvi_date]]
     leaflet_raster <- raster(selected_raster)
     
     # Determine scale type
