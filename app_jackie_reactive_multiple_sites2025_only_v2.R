@@ -14,13 +14,13 @@ library(sf)
 
 node_name <- Sys.info()["nodename"]
 
-# if (node_name=="TOPAZ-GW" ) {
-#   location_files_for_app <- 'B:/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/'
-# } else {
-#   location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
-# }
+if (node_name=="TOPAZ-GW" ) {
+  location_files_for_app <- 'B:/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/'
+} else {
+  location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
+}
 
-location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
+#location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
 
 ###############################################################################
 #### Site details - define all sites here ####
@@ -131,50 +131,41 @@ server <- function(input, output, session) {
     current_site <- sites[[input$site_select]]
     
     # Import files for selected site
-     withProgress(message = 'Loading site data...', {
+    withProgress(message = 'Loading site data...', {
+      
+      incProgress(0.1, detail = "Loading raster files...")
+      # Soil and zones raster
+      soil.rast <- rast(paste0(location_files_for_app, current_site, "/", "soil.tif"))
+      zones.rast <- rast(paste0(location_files_for_app, current_site, "/", "zones.tif"))
+      
+      incProgress(0.2, detail = "Loading NDVI data...")
+      # NDVI data
+      NDVI_most_recent <- readRDS(paste0(location_files_for_app, current_site, "/", yr2, "/", "ndvi_stack_", yr2, ".rds"))
+      
+      incProgress(0.3, detail = "Loading site information...")
+      # Site data
+      site.data <- readRDS(paste0(location_files_for_app, current_site, "/", "site_info.rds"))
+      site.data_df <- as.data.frame(site.data$seasons)
+      site.data_yr1_df <- dplyr::filter(site.data_df, year == 2024)
+      site.data_yr2_df <- dplyr::filter(site.data_df, year == 2025)
+      
+      incProgress(0.5, detail = "Loading growth curve data...")
+      # Growth curve data
+      growth_curve_data_yr2 <- 
+        read_csv(paste0(location_files_for_app, current_site, "/", yr2, "/", "ndvi_growth_curves_", yr2, ".csv"), show_col_types = FALSE) %>% 
+        dplyr::mutate(site = current_site, year = yr2)
+      
+      incProgress(1, detail = "Data loading complete!")
+    })
     
-     incProgress(0.1, detail = "Loading raster files...")
-    # Soil and zones raster
-    soil.rast <- rast(paste0(location_files_for_app, current_site, "/", "soil.tif"))
-    zones.rast <- rast(paste0(location_files_for_app, current_site, "/", "zones.tif"))
-    
-     incProgress(0.2, detail = "Loading NDVI data...")
-    # NDVI data
-    NDVI_most_recent <- readRDS(paste0(location_files_for_app, current_site, "/", yr2, "/", "ndvi_stack_", yr2, ".rds"))
-    # NDVI_yr1 <- subset(NDVI_most_recent, grep(yr1, names(NDVI_most_recent)))
-    # NDVI_yr2 <- subset(NDVI_most_recent, grep(yr2, names(NDVI_most_recent)))
-    
-     incProgress(0.3, detail = "Loading site information...")
-    # Site data
-    site.data <- readRDS(paste0(location_files_for_app, current_site, "/", "site_info.rds"))
-    site.data_df <- as.data.frame(site.data$seasons)
-    site.data_yr1_df <- dplyr::filter(site.data_df, year == 2024)
-    site.data_yr2_df <- dplyr::filter(site.data_df, year == 2025)
-    
-     incProgress(0.5, detail = "Loading growth curve data...")
-    # Growth curve data
-    # growth_curve_data_yr1 <- 
-    #   read_csv(paste0(location_files_for_app, current_site, "/", yr1, "/", "ndvi_growth_curves_", yr1, ".csv"), show_col_types = FALSE) %>% 
-    #   dplyr::mutate(site = current_site, year = yr1)
-    
-    growth_curve_data_yr2 <- 
-      read_csv(paste0(location_files_for_app, current_site, "/", yr2, "/", "ndvi_growth_curves_", yr2, ".csv"), show_col_types = FALSE) %>% 
-      dplyr::mutate(site = current_site, year = yr2)
-    
-     incProgress(1, detail = "Data loading complete!")
-     })
-    
-    # Return list of all data
+    # Return list of all data with proper naming
     list(
       soil_rast = soil.rast,
       zones_rast = zones.rast,
-      #ndvi_yr1 = NDVI_yr1,
-      #ndvi_yr2 = NDVI_yr2,
-      NDVI_most_recent,
+      ndvi_most_recent = NDVI_most_recent,  # Fixed: properly named in list
       site_data = site.data,
       site_data_yr1 = site.data_yr1_df,
       site_data_yr2 = site.data_yr2_df,
-      #growth_data_yr1 = growth_curve_data_yr1,
       growth_data_yr2 = growth_curve_data_yr2,
       site_name = current_site
     )
@@ -189,13 +180,18 @@ server <- function(input, output, session) {
                       selected = names(site_data$soil_rast)[1])
   })
   
-  # Update NDVI date choices when site changes
+  # Update NDVI date choices when site changes - FIXED
   observe({
     site_data <- current_site_data()
-    req(site_data$NDVI_most_recent)
+    req(site_data$ndvi_most_recent)  # Fixed: correct name
+    
+    # Get the available NDVI dates from the raster stack
+    ndvi_dates <- names(site_data$ndvi_most_recent)
+    
+    # Update the selectInput choices
     updateSelectInput(session, "ndvi_date",
-                      choices = names(site_data$NDVI_most_recent),
-                      selected = names(site_data$NDVI_most_recent)[1])
+                      choices = setNames(ndvi_dates, ndvi_dates),  # Use names as both values and labels
+                      selected = ndvi_dates[1])  # Select the first date by default
   })
   
   # Render map
@@ -226,18 +222,18 @@ server <- function(input, output, session) {
       fitBounds(lng1 = xmin, lat1 = ymin, lng2 = xmax, lat2 = ymax)
   })
   
-  # Reactive code for NDVI layer
+  # Reactive code for NDVI layer - FIXED
   observe({
     req(input$ndvi_date)
     site_data <- current_site_data()
-    req(site_data$NDVI_most_recent)
+    req(site_data$ndvi_most_recent)  # Fixed: correct name
     
     # Check if the selected NDVI date exists in the current site's data
-    if (!input$ndvi_date %in% names(site_data$NDVI_most_recent)) {
+    if (!input$ndvi_date %in% names(site_data$ndvi_most_recent)) {
       return()  # Exit if the layer doesn't exist
     }
     
-    selected_raster <- site_data$NDVI_most_recent[[input$ndvi_date]]
+    selected_raster <- site_data$ndvi_most_recent[[input$ndvi_date]]
     leaflet_raster <- raster(selected_raster)
     
     # Determine scale type
