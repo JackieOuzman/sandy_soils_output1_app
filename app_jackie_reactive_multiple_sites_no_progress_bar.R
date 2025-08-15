@@ -14,13 +14,13 @@ library(sf)
 
 node_name <- Sys.info()["nodename"]
 
-# if (node_name=="TOPAZ-GW" ) {
-#   location_files_for_app <- 'B:/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/'
-# } else {
-#   location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
-# }
+if (node_name=="TOPAZ-GW" ) {
+  location_files_for_app <- 'B:/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/'
+} else {
+  location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
+}
 
-location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
+#location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
 
 ###############################################################################
 #### Site details - define all sites here ####
@@ -287,14 +287,21 @@ server <- function(input, output, session) {
     req(site_data$growth_data_yr2)
     
     dat.clean <- site_data$growth_data_yr2
+    dat.clean <- dat.clean %>% mutate(treat_desc_label = case_when(
+      treat_desc == "Control (-Tillage -Lime).."  ~ "control",
+      treat_desc == "Control.."                   ~ "control",
+      treat_desc == "Control"                     ~ "control",
+      treat_desc == "Control"                     ~ "control",
+      .default = treat_desc
+    ))
     
-    p <- ggplot(dat.clean, aes(x = dap, y = ndvi, color = treat_desc, group = treat_desc)) +
-      # Bold black control line - any treatment containing "control"
-      geom_smooth(data = subset(dat.clean, grepl("control", treat_desc, ignore.case = TRUE)),
+    p <- ggplot(dat.clean, aes(x = dap, y = ndvi, color = treat_desc_label, group = treat_desc_label)) +
+      # Bold black control line
+      geom_smooth(data = dplyr::filter(dat.clean,  treat_desc_label == "control"),
                   method = "gam", span = 0.3, se = FALSE,
                   color = "black", size = 1.5) +
-      # Other treatments - those NOT containing "control"
-      geom_smooth(data = subset(dat.clean, !grepl("control", treat_desc, ignore.case = TRUE)),
+      # Other treatments
+      geom_smooth(data = dplyr::filter(dat.clean,  treat_desc_label != "control"),
                   method = "gam", span = 0.3, se = FALSE) +
       labs(
         title = paste("NDVI Timeseries (2025) -", site_data$site_name),

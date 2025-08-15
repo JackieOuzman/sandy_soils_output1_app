@@ -114,13 +114,21 @@ str(growth_curve_data_site1_yr2)
         dat.clean
         str(dat.clean)
         
-        p <- ggplot(dat.clean, aes(x = dap, y = ndvi, color = treat_desc, group = treat_desc)) +
+        dat.clean <- dat.clean %>% mutate(treat_desc_label = case_when(
+          treat_desc == "Control (-Tillage -Lime).."  ~ "control",
+          treat_desc == "Control.."                   ~ "control",
+          treat_desc == "Control"                     ~ "control",
+          treat_desc == "Control"                     ~ "control",
+          .default = treat_desc
+        ))
+        
+        p <- ggplot(dat.clean, aes(x = dap, y = ndvi, color = treat_desc_label, group = treat_desc_label)) +
           # Bold black control line
-          geom_smooth(data = subset(dat.clean, grepl("control", treat_desc, ignore.case = TRUE)),,
+          geom_smooth(data = dplyr::filter(dat.clean,  treat_desc_label == "control"),
                       method = "gam", span = 0.3, se = FALSE,
                       color = "black", size = 1.5) +
           # Other treatments
-          geom_smooth(data = subset(dat.clean, !grepl("control", treat_desc, ignore.case = TRUE)),
+          geom_smooth(data = dplyr::filter(dat.clean,  treat_desc_label != "control"),
                       method = "gam", span = 0.3, se = FALSE) +
           labs(
             title = "NDVI Timeseries",
