@@ -286,13 +286,21 @@ server <- function(input, output, session) {
     req(site_data$growth_data_yr2)
     
     dat.clean <- site_data$growth_data_yr2
+    
     dat.clean <- dat.clean %>% dplyr::mutate(treat_desc_label = 
-                                        dplyr::case_when(
-      treat_desc == "Control (-Tillage -Lime).."  ~ "control",
-      treat_desc == "Control.."                   ~ "control",
-      treat_desc == "Control"                     ~ "control",
-      .default = as.character(treat_desc)
-    ))
+                                               dplyr::case_when(
+                                                 treat_desc %in% c("Control (-Tillage -Lime)..", 
+                                                                   "Control..", "Control") ~ "control",
+                                                 .default = as.character(treat_desc)
+                                               ))
+    
+    # dat.clean <- dat.clean %>% dplyr::mutate(treat_desc_label = 
+    #                                     dplyr::case_when(
+    #   treat_desc == "Control (-Tillage -Lime).."  ~ "control",
+    #   treat_desc == "Control.."                   ~ "control",
+    #   treat_desc == "Control"                     ~ "control",
+    #   .default = as.character(treat_desc)
+    # ))
     
     # Clean site name by removing numbers, dots, and replacing underscores
     clean_site_name <- gsub("^\\d+\\.", "", site_data$site_name)  # Remove leading numbers and dot
