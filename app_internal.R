@@ -14,13 +14,13 @@ library(sf)
 
 node_name <- Sys.info()["nodename"]
 
-# if (node_name=="TOPAZ-GW" ) {
-#   location_files_for_app <- 'B:/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/'
-# } else {
-#   location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
-# }
+if (node_name=="TOPAZ-GW" ) {
+  location_files_for_app <- 'B:/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/'
+} else {
+  location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
+}
 
-location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
+#location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
 
 ###############################################################################
 #### Site details - define all sites here ####
@@ -116,6 +116,20 @@ ui <- fluidPage(
            plotlyOutput("ndvi_curve_plot")
     )
   )
+  ,
+  
+     # Debug information
+     fluidRow(
+       column(12,
+              wellPanel(
+                h4("Debug Information"),
+               h5("Unique Date NDVI:"),
+                verbatimTextOutput("debug_NDVI_dates"),
+                
+              )
+       )
+     
+   )
 )
 
 ###############################################################################
@@ -226,7 +240,7 @@ server <- function(input, output, session) {
   observe({
     req(input$ndvi_date)
     site_data <- current_site_data()
-    req(site_data$ndvi_most_recent)  # Fixed: correct name
+    req(site_data$ndvi_most_recent)  # 
     
     # Check if the selected NDVI date exists in the current site's data
     if (!input$ndvi_date %in% names(site_data$ndvi_most_recent)) {
@@ -357,6 +371,18 @@ server <- function(input, output, session) {
       "No data available"
     }
   })
+  
+  ##Debugging for soils server
+  
+  output$debug_NDVI_dates <- renderText({
+    
+    site_data <- current_site_data()
+    
+    unique_values <- unique(names(site_data$ndvi_most_recent))
+    paste(paste0('"', unique_values, '"'), collapse = "\n")
+  })
+  
+  
 }
 
 # Run the app
