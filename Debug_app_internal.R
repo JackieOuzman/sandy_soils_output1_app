@@ -116,26 +116,26 @@ ui <- fluidPage(
            plotlyOutput("ndvi_curve_plot")
     )
   )
-  ,
+  #,
   
-     # Debug information
-  fluidRow(
-    column(12,
-           wellPanel(
-             h4("Debug Information"),
-             h5("NDVI Data Status:"),
-             verbatimTextOutput("debug_ndvi_status"),
-             h5("NDVI Object Structure:"),
-             verbatimTextOutput("debug_ndvi_structure"),
-             h5("Unique NDVI Dates:"),
-             verbatimTextOutput("debug_NDVI_dates"),
-             h5("Site Data Loading Status:"),
-             verbatimTextOutput("debug_site_status")
-                
-              )
-       )
-     
-   )
+  #    # Debug information
+  # fluidRow(
+  #   column(12,
+  #          wellPanel(
+  #            h4("Debug Information"),
+  #            h5("NDVI Data Status:"),
+  #            verbatimTextOutput("debug_ndvi_status"),
+  #            h5("NDVI Object Structure:"),
+  #            verbatimTextOutput("debug_ndvi_structure"),
+  #            h5("Unique NDVI Dates:"),
+  #            verbatimTextOutput("debug_NDVI_dates"),
+  #            h5("Site Data Loading Status:"),
+  #            verbatimTextOutput("debug_site_status")
+  #               
+  #             )
+  #      )
+  #    
+  #  )
 )
 
 ###############################################################################
@@ -470,21 +470,21 @@ server <- function(input, output, session) {
     paste(paste0('"', ndvi_names, '"'), collapse = "\n")
   })
   
-  output$debug_ndvi_status <- renderText({
-    site_data <- current_site_data()
-    
-    if(is.null(site_data)) {
-      return("Site data is NULL")
-    }
-    
-    if(is.null(site_data$ndvi_most_recent)) {
-      return("ndvi_most_recent is NULL - file may not exist or failed to load")
-    }
-    
-    paste0("NDVI data loaded successfully. Class: ", class(site_data$ndvi_most_recent)[1],
-           " | Layers: ", nlyr(site_data$ndvi_most_recent),
-           " | Has names: ", !is.null(names(site_data$ndvi_most_recent)))
-  })
+  # output$debug_ndvi_status <- renderText({
+  #   site_data <- current_site_data()
+  #   
+  #   if(is.null(site_data)) {
+  #     return("Site data is NULL")
+  #   }
+  #   
+  #   if(is.null(site_data$ndvi_most_recent)) {
+  #     return("ndvi_most_recent is NULL - file may not exist or failed to load")
+  #   }
+  #   
+  #   paste0("NDVI data loaded successfully. Class: ", class(site_data$ndvi_most_recent)[1],
+  #          " | Layers: ", nlyr(site_data$ndvi_most_recent),
+  #          " | Has names: ", !is.null(names(site_data$ndvi_most_recent)))
+  # })
   
 }
 
