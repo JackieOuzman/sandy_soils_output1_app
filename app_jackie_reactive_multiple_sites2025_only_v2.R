@@ -284,7 +284,7 @@ server <- function(input, output, session) {
     req(site_data$growth_data_yr2)
     
     dat.clean <- site_data$growth_data_yr2
-    dat.clean <- dat.clean %>% mutate(treat_desc_label = case_when(
+    dat.clean <- dat.clean %>% mutate(treat_desc_label = dplyr::case_when(
       treat_desc == "Control (-Tillage -Lime).."  ~ "control",
       treat_desc == "Control.."                   ~ "control",
       treat_desc == "Control"                     ~ "control",
