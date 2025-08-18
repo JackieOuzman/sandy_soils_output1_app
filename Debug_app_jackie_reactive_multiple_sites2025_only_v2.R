@@ -117,20 +117,21 @@ ui <- fluidPage(
     column(12,
            plotlyOutput("ndvi_curve_plot")
     )
-  ),
+  )
+  #,
   
-  # Debug information
-  fluidRow(
-    column(12,
-           wellPanel(
-             h4("Debug Information"),
-             h5("Unique Treatment Descriptions:"),
-             verbatimTextOutput("debug_treat_desc"),
-             
-           )
-    )
-  
-)
+#   # Debug information
+#   fluidRow(
+#     column(12,
+#            wellPanel(
+#              h4("Debug Information"),
+#              h5("Unique Treatment Descriptions:"),
+#              verbatimTextOutput("debug_treat_desc"),
+#              
+#            )
+#     )
+#   
+# )
 )
 
 ###############################################################################
@@ -314,22 +315,16 @@ server <- function(input, output, session) {
     
     ##Debugging for soils server
     
-    output$debug_treat_desc <- renderText({
-      site_data <- current_site_data()
-      req(site_data$growth_data_yr2)
-      
-      dat.clean <- site_data$growth_data_yr2
-      unique_values <- unique(dat.clean$treat_desc)
-      paste(paste0('"', unique_values, '"'), collapse = "\n")
-    })
+    # output$debug_treat_desc <- renderText({
+    #   site_data <- current_site_data()
+    #   req(site_data$growth_data_yr2)
+    #   
+    #   dat.clean <- site_data$growth_data_yr2
+    #   unique_values <- unique(dat.clean$treat_desc)
+    #   paste(paste0('"', unique_values, '"'), collapse = "\n")
+    # })
     
-    # Debug output for string lengths
-    output$debug_string_lengths <- renderText({
-      site_data <- current_site_data()
-      req(site_data$growth_data_yr2)
-      
-      
-    })
+    
     
     # Clean site name by removing numbers, dots, and replacing underscores
     clean_site_name <- gsub("^\\d+\\.", "", site_data$site_name)  # Remove leading numbers and dot
