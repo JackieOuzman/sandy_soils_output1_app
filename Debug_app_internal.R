@@ -160,7 +160,15 @@ server <- function(input, output, session) {
       
       incProgress(0.2, detail = "Loading NDVI data...")
       # NDVI data
+      # NDVI data - ADD UNPACKING FOR PackedSpatRaster
       NDVI_most_recent <- readRDS(paste0(location_files_for_app, current_site, "/", yr2, "/", "ndvi_stack_", yr2, ".rds"))
+      
+      # Unpack if it's a PackedSpatRaster
+      if(inherits(NDVI_most_recent, "PackedSpatRaster")) {
+        NDVI_most_recent <- rast(NDVI_most_recent)
+      }
+      
+       #NDVI_most_recent <- readRDS(paste0(location_files_for_app, current_site, "/", yr2, "/", "ndvi_stack_", yr2, ".rds"))
       
       incProgress(0.3, detail = "Loading site information...")
       # Site data
@@ -462,18 +470,20 @@ server <- function(input, output, session) {
     paste(paste0('"', ndvi_names, '"'), collapse = "\n")
   })
   
-  output$debug_site_status <- renderText({
-    current_site <- sites[[input$site_select]]
-    file_path <- paste0(location_files_for_app, current_site, "/", yr2, "/", "ndvi_stack_", yr2, ".rds")
+  output$debug_ndvi_status <- renderText({
+    site_data <- current_site_data()
     
-    info <- c(
-      paste("Current site:", current_site),
-      paste("File path:", file_path),
-      paste("File exists:", file.exists(file_path)),
-      paste("Directory exists:", dir.exists(dirname(file_path)))
-    )
+    if(is.null(site_data)) {
+      return("Site data is NULL")
+    }
     
-    paste(info, collapse = "\n")
+    if(is.null(site_data$ndvi_most_recent)) {
+      return("ndvi_most_recent is NULL - file may not exist or failed to load")
+    }
+    
+    paste0("NDVI data loaded successfully. Class: ", class(site_data$ndvi_most_recent)[1],
+           " | Layers: ", nlyr(site_data$ndvi_most_recent),
+           " | Has names: ", !is.null(names(site_data$ndvi_most_recent)))
   })
   
 }
