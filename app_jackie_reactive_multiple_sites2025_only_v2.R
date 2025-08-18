@@ -7,6 +7,8 @@ library(dplyr)
 library(terra)
 library(raster)  # Needed for rendering raster in leaflet
 library(sf)
+library(sp)
+library(ggplot2)
 
 ###############################################################################
 #### Central location of the files the app will draw on - id the directory here ####
@@ -284,12 +286,13 @@ server <- function(input, output, session) {
     req(site_data$growth_data_yr2)
     
     dat.clean <- site_data$growth_data_yr2
-    dat.clean <- dat.clean %>% mutate(treat_desc_label = dplyr::case_when(
+    dat.clean <- dat.clean %>% dplyr::mutate(treat_desc_label = 
+                                        dplyr::case_when(
       treat_desc == "Control (-Tillage -Lime).."  ~ "control",
       treat_desc == "Control.."                   ~ "control",
       treat_desc == "Control"                     ~ "control",
       treat_desc == "Control"                     ~ "control",
-      .default = treat_desc
+      .default = as.character(treat_desc)
     ))
     
     # Clean site name by removing numbers, dots, and replacing underscores
