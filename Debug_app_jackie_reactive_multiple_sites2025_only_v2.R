@@ -16,13 +16,13 @@ library(ggplot2)
 
 node_name <- Sys.info()["nodename"]
 
-# if (node_name=="TOPAZ-GW" ) {
-#   location_files_for_app <- 'B:/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/'
-# } else {
-#   location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
-# }
+if (node_name=="TOPAZ-GW" ) {
+  location_files_for_app <- 'B:/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/'
+} else {
+  location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
+}
 
-location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
+#location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
 
 ###############################################################################
 #### Site details - define all sites here ####
@@ -117,7 +117,20 @@ ui <- fluidPage(
     column(12,
            plotlyOutput("ndvi_curve_plot")
     )
-  )
+  ),
+  
+  # Debug information
+  fluidRow(
+    column(12,
+           wellPanel(
+             h4("Debug Information"),
+             h5("Unique Treatment Descriptions:"),
+             verbatimTextOutput("debug_treat_desc"),
+             
+           )
+    )
+  
+)
 )
 
 ###############################################################################
@@ -289,19 +302,34 @@ server <- function(input, output, session) {
     
     
     
-    dat.clean <- dat.clean %>% dplyr::mutate(treat_desc_label =
-                                        dplyr::case_when(
-      treat_desc == "Control (-Tillage -Lime).."  ~ "control",
-      treat_desc == "Control.."                   ~ "control",
-      treat_desc == "Control"                     ~ "control",
-      TRUE = as.character(treat_desc)
-    ))
+    dat.clean <- dat.clean %>% 
+      dplyr::mutate(
+        treat_desc_label = dplyr::case_when(
+          treat_desc == "Control (-Tillage -Lime).." ~ "control",
+          treat_desc == "Control.." ~ "control", 
+          treat_desc == "Control" ~ "control",
+          TRUE ~ as.character(treat_desc)
+        )
+      )
     
     ##Debugging for soils server
     
-    # print("Unique treat_desc values:")
-    # print(unique(dat.clean$treat_desc))
-    # 
+    output$debug_treat_desc <- renderText({
+      site_data <- current_site_data()
+      req(site_data$growth_data_yr2)
+      
+      dat.clean <- site_data$growth_data_yr2
+      unique_values <- unique(dat.clean$treat_desc)
+      paste(paste0('"', unique_values, '"'), collapse = "\n")
+    })
+    
+    # Debug output for string lengths
+    output$debug_string_lengths <- renderText({
+      site_data <- current_site_data()
+      req(site_data$growth_data_yr2)
+      
+      
+    })
     
     # Clean site name by removing numbers, dots, and replacing underscores
     clean_site_name <- gsub("^\\d+\\.", "", site_data$site_name)  # Remove leading numbers and dot
