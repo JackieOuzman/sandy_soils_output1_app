@@ -291,7 +291,6 @@ server <- function(input, output, session) {
       treat_desc == "Control (-Tillage -Lime).."  ~ "control",
       treat_desc == "Control.."                   ~ "control",
       treat_desc == "Control"                     ~ "control",
-      treat_desc == "Control"                     ~ "control",
       .default = as.character(treat_desc)
     ))
     
