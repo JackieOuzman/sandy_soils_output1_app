@@ -28,7 +28,7 @@ names(soil) <- c("Subsoil_Clay_pct","DepthToB","DepthToClay","DepthToFizz",
                  "Surface_pH_cacl","Surface_pH_h2O","Repellence","Surface_Carbonates")
 
 zones <- rast(file.path(readDir, "3.Covariates/6.Clusters_Zones/FINAL/GUM_Opt_Clusters_85_round.tif"))
-zones.sf <- st_read(paste0(readDir,"/3.Covariates/6.Clusters_Zones/FINAL/MRS125_Zones_round_wgs84_smooth.shp"))
+###zones.sf <- st_read(paste0(readDir,"/3.Covariates/6.Clusters_Zones/FINAL/MRS125_Zones_round_wgs84_smooth.shp"))
 
 writeRaster(soil,paste0(saveDir,'/soil.tif'),overwrite=T)
 writeRaster(zones,paste0(saveDir,'/zones.tif'),overwrite=T)
