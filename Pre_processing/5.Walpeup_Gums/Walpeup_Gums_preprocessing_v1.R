@@ -15,8 +15,10 @@ suppressPackageStartupMessages({
 
 # ====================== PATHS ======================
 readDir <- "//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}/work/Output-1/5.Walpeup_Gums"
-saveDir <- "//fs1-cbr.nexus.csiro.au/{lw-soildatarepo}/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/5.Walpeup_Gums"
+#saveDir <- "//fs1-cbr.nexus.csiro.au/{lw-soildatarepo}/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/5.Walpeup_Gums"
 #dir_create(saveDir)
+saveDir <- "C:/Users/ouz001/working_from_home_post_Sep2022/sandy_soils_output1_app/Pre_processing/5.Walpeup_Gums/preprocessing_output"
+
 
 ################################################################################
 ######################## 1) Read in Paddock maps ###############################
@@ -26,6 +28,7 @@ names(soil) <- c("Subsoil_Clay_pct","DepthToB","DepthToClay","DepthToFizz",
                  "Surface_pH_cacl","Surface_pH_h2O","Repellence","Surface_Carbonates")
 
 zones <- rast(file.path(readDir, "3.Covariates/6.Clusters_Zones/FINAL/GUM_Opt_Clusters_85_round.tif"))
+zones.sf <- st_read(paste0(readDir,"/3.Covariates/6.Clusters_Zones/FINAL/MRS125_Zones_round_wgs84_smooth.shp"))
 
 writeRaster(soil,paste0(saveDir,'/soil.tif'),overwrite=T)
 writeRaster(zones,paste0(saveDir,'/zones.tif'),overwrite=T)
@@ -148,8 +151,8 @@ ensure_common_crs <- function(polygons, rasters) {
 # Processes Planet and Sentinel Data
 
 year_to_suffix <- function(y) sprintf("%02d", y %% 100)
-
-for (i in seq_len(nrow(site.info$seasons))) {
+i <- 2
+#for (i in seq_len(nrow(site.info$seasons))) {
   yr         <- site.info$seasons$year[i]
   plant_date <- site.info$seasons$plant_date[i]
   crop_type  <- site.info$seasons$crop_type[i]
@@ -600,6 +603,162 @@ for (i in seq_len(nrow(site.info$seasons))) {
   ggsave(out_plot_cum_sentinel, p_cum_sen, width = 8, height = 5, dpi = 300)
   saveRDS(sen.dat, out_rds_sentinel)
   
+  #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  ## COMPUTE BY ZONES
+  # ================== 3.x ) Split NDVI growth curves by zones ==================
+  
+  # 1. Ensure zones raster matches CRS and extent
+  zones <- terra::project(zones, sen.dat,method = 'near')
+  names(zones) <- "zone_id"
+  
+  # ================= NDVI growth curves by ZONES (fresh, minimal) =================
+  
+  zone_field <- "cluster3"
+  # --- 1) Read zones (sf) and intersect with strips to get treatment×zone polys --
+  zones_sf <- sf::st_transform(zones.sf, sf::st_crs(trial.plan))  # align CRS
+  
+  # keep only the zone id column + geometry
+  stopifnot(zone_field %in% names(zones_sf))
+  zones_sf <- zones_sf[, c(zone_field, attr(zones_sf, "sf_column"))]
+  
+  # intersection: each strip gets cut by zone polygons
+  tz_sf <- suppressWarnings(sf::st_intersection(trial.plan, zones_sf))
+  tz_sf <- dplyr::mutate(tz_sf,
+                         zone_id    = .data[[zone_field]],
+                         treat_zone = paste0(.data$treat_desc, "__Z", .data$zone_id))
+  
+  # (optional) drop tiny slivers if they exist (skip if you prefer)
+  # tz_sf <- tz_sf[sf::st_area(tz_sf) > units::set_units(50, "m^2"), ]  # only if CRS is metric
+  
+  # convert to terra SpatVector in the same CRS as the raster
+  polys_treat_zone <- terra::vect(sf::st_transform(tz_sf, sf::st_crs(sen.dat)))
+  
+  # dissolve by treat_zone to avoid duplicates
+  polys_treat_zone <- tryCatch(
+    terra::dissolve(polys_treat_zone, "treat_zone"),
+    error = function(e) terra::aggregate(polys_treat_zone, by = "treat_zone")
+  )
+  
+  # --- 2) Extract mean NDVI for each layer / polygon (one pass) ------------------
+  means_list <- lapply(seq_len(terra::nlyr(sen.dat)), function(k) {
+    terra::extract(sen.dat[[k]], polys_treat_zone, fun = mean, na.rm = TRUE)[, 2]
+  })
+  mat <- do.call(rbind, means_list)                                # rows = layers, cols = polygons
+  colnames(mat) <- as.character(polys_treat_zone$treat_zone)
+  
+  # --- 3) Build dates & DAP from layer names -------------------------------------
+  #Done above
+  # --- 4) Tidy long with zone kept, window DAP, drop buffers ---------------------
+  long_zone <- tibble::as_tibble(mat, .name_repair = "unique") |>
+    dplyr::mutate(dap = dap_sen) |>
+    tidyr::pivot_longer(-dap, names_to = "treat_zone", values_to = "ndvi") |>
+    tidyr::separate(treat_zone, into = c("treat_desc","zone_id"), sep = "__Z", remove = TRUE) |>
+    dplyr::mutate(zone_id = factor(zone_id)) |>
+    dplyr::filter(dap >= -20, dap <= 150) |>
+    dplyr::filter(!stringr::str_starts(treat_desc, "Buffer"),
+                  !stringr::str_starts(treat_desc, "Outside Control")) |>
+    dplyr::arrange(zone_id, treat_desc, dap)
+  
+  # --- 5) Cumulative NDVI per (zone, treatment), trapezoid from DAP >= 0 ---------
+  long_cum_zone <- long_zone |>
+    dplyr::filter(dap >= 0) |>
+    dplyr::group_by(zone_id, treat_desc, dap) |>
+    dplyr::summarise(ndvi = mean(ndvi, na.rm = TRUE), .groups = "drop") |>
+    dplyr::arrange(zone_id, treat_desc, dap) |>
+    dplyr::group_by(zone_id, treat_desc) |>
+    dplyr::mutate(
+      ndvi_lag = dplyr::lag(ndvi, default = dplyr::first(ndvi)),
+      dap_lag  = dplyr::lag(dap,  default = 0),
+      seg_area = 0.5 * (ndvi + ndvi_lag) * (dap - dap_lag),
+      cum_ndvi = cumsum(seg_area)
+    ) |>
+    dplyr::ungroup()
+  
+  # --- 6) Palette (Control -> black) and top-axis date breaks --------------------
+  
+  # --- 7) NDVI by zone (faceted) -------------------------------------------------
+  plant_date_date <- as.Date(plant_date)
+  top_breaks <- as.numeric(seq(
+    plant_date_date,
+    plant_date_date + max(long_zone$dap, na.rm = TRUE),
+    by = "4 weeks"
+  ))
+  
+  legend_rows <- 2  # ← tweak to 1/2/3 to control how “chunky” the legend is
+  
+  # --- Palette (Control → black, robust to label variants) ---
+  treat_lvls <- levels(factor(long_zone$treat_desc))
+  base_cols  <- scales::hue_pal()(length(treat_lvls)); names(base_cols) <- treat_lvls
+  
+  ctrl_candidates <- c("Control (-Tillage -Lime)", "Control")
+  ctrl_name <- intersect(ctrl_candidates, names(base_cols))[1]
+  if (!is.na(ctrl_name)) base_cols[ctrl_name] <- "black"
+  
+  # --- Plot: 3 zones in one row, compact legend, bigger x-axis fonts ---
+  p_zone_wide <- ggplot(long_zone, aes(dap, ndvi, color = treat_desc, group = treat_desc)) +
+    geom_smooth(method = "gam", formula = y ~ s(x, k = 8), se = FALSE, linewidth = 0.9) +
+    scale_color_manual(values = base_cols) +
+    scale_x_continuous(
+      name = "Days after planting (DAP)",
+      sec.axis = sec_axis(
+        trans  = ~ as.numeric(plant_date_date) + .,
+        name   = "Date",
+        labels = function(x) format(as.Date(x, origin = "1970-01-01"), "%d-%b"),
+        breaks = top_breaks
+      )
+    ) +
+    facet_wrap(~ zone_id, ncol = 3, labeller = zone_labeller) +
+    labs(
+      title = paste0("**<span style='font-size:18pt;'>", site.info[[1]],
+                     "</span>**<br>Sentinel NDVI by Zone (", yr, ")"),
+      y = "Average NDVI", color = "Treatment"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title       = ggtext::element_markdown(hjust = 0.5, lineheight = 1.1),
+      strip.text       = element_text(size = 12, face = "bold"),
+      legend.position  = "bottom",
+      legend.box       = "vertical",
+      legend.justification = "center",
+      # bigger x-axis fonts
+      axis.text.x      = element_text(size = 14),
+      axis.title.x     = element_text(size = 16),
+      axis.text.x.top  = element_text(size = 8),
+      axis.title.x.top = element_text(size = 12)
+    ) 
+  
+  # Emphasise Control in-plot only (legend unchanged)
+  if (!is.na(ctrl_name)) {
+    p_zone_wide <- p_zone_wide +
+      geom_smooth(
+        data = subset(long_zone, treat_desc == ctrl_name),
+        aes(dap, ndvi, group = treat_desc),
+        method = "gam", formula = y ~ s(x, k = 8), se = FALSE,
+        color = "black", linewidth = 1.2, show.legend = FALSE
+      )
+  }
+  
+  p_zone_wide <- p_zone_wide +
+    labs(
+      subtitle = paste("Last cloud-free Sentinel image:", 
+                       format(last_date_sen, "%d %b %Y"))
+    )
+  
+  p_zone_wide
+  
+  ###JACKIE####
+  out_plot_sentinel_zone     <- file.path(saveDir_year, sprintf("ndvi_growth_curves_sentinel_zone_%s.png", yr))
+  ggsave(out_plot_sentinel_zone,     p_zone_wide,     width = 8, height = 5, dpi = 300)
+  
   
   message("Saved outputs to: ", saveDir_year)
-}
+  #}
+  
+  
+  
+  
+  
+  
+  
+  
+  
