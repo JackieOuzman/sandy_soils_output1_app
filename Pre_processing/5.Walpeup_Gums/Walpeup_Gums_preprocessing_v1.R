@@ -28,7 +28,7 @@ names(soil) <- c("Subsoil_Clay_pct","DepthToB","DepthToClay","DepthToFizz",
                  "Surface_pH_cacl","Surface_pH_h2O","Repellence","Surface_Carbonates")
 
 zones <- rast(file.path(readDir, "3.Covariates/6.Clusters_Zones/FINAL/GUM_Opt_Clusters_85_round.tif"))
-###zones.sf <- st_read(paste0(readDir,"/3.Covariates/6.Clusters_Zones/FINAL/MRS125_Zones_round_wgs84_smooth.shp"))
+zones.sf <- st_read(paste0(readDir,"/3.Covariates/6.Clusters_Zones/FINAL/GUM_zones_syd_cleaned.shp"))
 
 writeRaster(soil,paste0(saveDir,'/soil.tif'),overwrite=T)
 writeRaster(zones,paste0(saveDir,'/zones.tif'),overwrite=T)
@@ -622,7 +622,12 @@ i <- 2
   zones_sf <- zones_sf[, c(zone_field, attr(zones_sf, "sf_column"))]
   
   # intersection: each strip gets cut by zone polygons
-  tz_sf <- suppressWarnings(sf::st_intersection(trial.plan, zones_sf))
+  ## JACKIE ## 
+  trial.plan_clean <- sf::st_make_valid(trial.plan)
+  zones_sf_clean <- sf::st_make_valid(zones_sf)
+  tz_sf <- suppressWarnings(sf::st_intersection(trial.plan_clean, zones_sf_clean))
+  ###
+  #tz_sf <- suppressWarnings(sf::st_intersection(trial.plan, zones_sf))
   tz_sf <- dplyr::mutate(tz_sf,
                          zone_id    = .data[[zone_field]],
                          treat_zone = paste0(.data$treat_desc, "__Z", .data$zone_id))
@@ -707,7 +712,9 @@ i <- 2
         breaks = top_breaks
       )
     ) +
-    facet_wrap(~ zone_id, ncol = 3, labeller = zone_labeller) +
+    facet_wrap(~ zone_id, ncol = 3#, 
+               #labeller = zone_labeller
+               ) +
     labs(
       title = paste0("**<span style='font-size:18pt;'>", site.info[[1]],
                      "</span>**<br>Sentinel NDVI by Zone (", yr, ")"),
@@ -751,7 +758,7 @@ i <- 2
   ggsave(out_plot_sentinel_zone,     p_zone_wide,     width = 8, height = 5, dpi = 300)
   
   
-  message("Saved outputs to: ", saveDir_year)
+  #message("Saved outputs to: ", saveDir_year)
   #}
   
   
