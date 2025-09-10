@@ -13,7 +13,9 @@ suppressPackageStartupMessages({
 
 # ====================== PATHS ======================
 readDir <- "//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}/work/Output-1/4.Wharminda"
-saveDir <- "//fs1-cbr.nexus.csiro.au/{lw-soildatarepo}/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/Wharminda_Woodys"
+#saveDir <- "//fs1-cbr.nexus.csiro.au/{lw-soildatarepo}/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/Wharminda_Woodys"
+saveDir <- "C:/Users/ouz001/working_from_home_post_Sep2022/sandy_soils_output1_app/Pre_processing/4.Wharminda/preprocessing_output"
+
 #dir_create(saveDir)
 
 ################################################################################
@@ -24,9 +26,29 @@ soil <- rast(file.path(readDir, "9.Maps/Soil/all_maps_4326.tif"))
 #                 "Surface_pH_cacl","Surface_pH_h2O","Repellence","Surface_Carbonates")
 
 zones <- rast(file.path(readDir, "3.Covariates/6.Clusters_Zones/FINAL/WOD_Opt_Clusters_85.tif"))
+##JACKIE
+zones.sf <- st_read(paste0(readDir,"/3.Covariates/6.Clusters_Zones/FINAL/WOD_4zones_syd.shp"))
 
 writeRaster(soil,paste0(saveDir,'/soil.tif'),overwrite=T)
 writeRaster(zones,paste0(saveDir,'/zones.tif'),overwrite=T)
+
+## JACKIE
+#### This script doesnt match the other sites - I think I need these bits ###
+ensure_common_crs <- function(polygons, rasters) {
+  if (!inherits(rasters, "SpatRaster")) stop("`rasters` must be a SpatRaster.")
+  if (inherits(polygons, "sf")) {
+    pv <- terra::vect(polygons)
+  } else if (inherits(polygons, "SpatVector")) {
+    pv <- polygons
+  } else {
+    stop("`polygons` must be an sf or SpatVector.")
+  }
+  cr_r <- terra::crs(rasters, proj = TRUE)
+  if (!identical(terra::crs(pv, proj = TRUE), cr_r)) {
+    pv <- terra::project(pv, cr_r)
+  }
+  pv
+}
 
 ################################################################################
 ######################## 2) Paddock Information  ###############################
@@ -125,8 +147,9 @@ polygon_mean_timeseries <- function(rasters, polygons) {
 # =================== 3.1 ) PROCESS SEASONS ===================
 # Map years to folder suffixes
 year_to_suffix <- function(y) sprintf("%02d", y %% 100)
-
-for (i in seq_len(nrow(site.info$seasons))) {
+##JACKIE
+i <- 2
+#for (i in seq_len(nrow(site.info$seasons))) {
   yr         <- site.info$seasons$year[i]
   plant_date <- site.info$seasons$plant_date[i]
   crop_type  <- site.info$seasons$crop_type[i]
@@ -214,5 +237,421 @@ for (i in seq_len(nrow(site.info$seasons))) {
   ggsave(out_plot_cum, p_cum, width = 8, height = 5, dpi = 300)
   saveRDS(ndvi, out_rds)
   
-  message("Saved outputs to: ", saveDir_year)
-}
+  #message("Saved outputs to: ", saveDir_year)
+#}
+####JACKIE - this script doesnt really match the format from the other site.
+  ################################################################################
+  ############################ 3.4) Sentinel-2 NDVI  #############################
+  ################################################################################
+  
+  if (is.na(plant_date)) stop("Season row 2 has no plant_date; cannot compute DAP.")
+  
+  saveDir_year <- file.path(saveDir, as.character(yr))
+  fs::dir_create(saveDir_year)
+  
+  # Path to your precomputed Sentinel NDVI stack
+  sen_path <- file.path(readDir, "7.In_Season_data", sprintf("%02d", yr %% 100),
+                        "2.Satellite_Imagery", "Sentinel", "NDVI_Stack_WOD.tif")
+  if (!file.exists(sen_path)) stop("Sentinel NDVI stack not found: ", sen_path)
+  
+  sen.dat <- terra::rast(sen_path)
+  sen.dat <- terra::project(sen.dat,'epsg:4326')
+  
+  #Note: Crystal Brook strattles 2x tiles, but the difference is not noticable
+  #We can simply justdrop one of the tile sets.
+  nm <- names(sen.dat)
+  
+  hqd_idx <- grep("HQD", nm, perl = TRUE)
+  # If your names always have underscores around the tile, this also works:
+  # hqd_idx <- grep("_T53HQD(_|$)", nm)
+  
+  if (length(hqd_idx)) {
+    message("Dropping ", length(hqd_idx), " layers from tile T53HQD")
+    sen.dat <- sen.dat[[-hqd_idx]]
+  } else {
+    message("No T53HQD layers present; nothing to drop.")
+  }
+  nm <- names(sen.dat)
+  
+  ##### REMOVE CLOUD IMAGES - Future task to automate this!!
+  
+  # ---- 1) Parse acquisition dates from layer names (robust) ----
+  
+  # prefer 8-digit yyyymmdd anywhere in the name; fallback to yyyy-mm-dd
+  dates_8   <- stringr::str_extract(nm, "(?<!\\d)\\d{8}(?!\\d)")
+  dates_hy  <- stringr::str_extract(nm, "\\d{4}-\\d{2}-\\d{2}")
+  dates_chr <- ifelse(!is.na(dates_8), dates_8, gsub("-", "", dates_hy))
+  
+  if (any(is.na(dates_chr))) {
+    stop("Could not parse dates for layers: ", paste(nm[is.na(dates_chr)], collapse = ", "))
+  }
+  
+  img_dates_sen <- as.Date(dates_chr, format = "%Y%m%d")
+  
+  # ---- 2) Make order deterministic: sort by date (oldest â newest) ----
+  o <- order(img_dates_sen)
+  sen.dat        <- sen.dat[[o]]
+  img_dates_sen  <- img_dates_sen[o]
+  
+  # Give layers clean, informative names
+  names(sen.dat) <- format(img_dates_sen, "%Y-%m-%d")
+  
+  # ---- 3) Drop by DATE (stable across any reordering) ----
+  plot(sen.dat)
+  nlyr(sen.dat)
+  
+  plot(sen.dat[[c(1:16)]])
+  plot(sen.dat[[c(17:33)]])
+  plot(sen.dat[[c(34:50)]])
+  plot(sen.dat[[c(51:67)]])
+  
+  
+  bad_dates_map <- list(
+      "2025" = c("2025-04-01",
+                 "2025-04-06",
+                 "2025-04-08",
+                 "2025-04-11",
+                 "2025-04-16",
+                 "2025-04-21",
+                 "2025-04-23",
+                 "2025-04-26",
+                 "2025-04-28",
+                 "2025-04-30",
+                 
+                 "2025-05-01",
+                 "2025-05-03",
+                 "2025-05-06",
+                 "2025-05-08",
+                 "2025-05-11",
+                 "2025-05-13",
+                 "2025-05-16",
+                 "2025-05-18",
+                 "2025-05-20",
+                 "2025-05-23",
+                 "2025-05-26",
+                 "2025-05-28",
+                 
+                 "2025-06-02",
+                 "2025-06-05",
+                 "2025-06-09",
+                 "2025-06-10",
+                 "2025-06-17",
+                 "2025-06-22",
+                 "2025-06-25",
+                 "2025-06-27",
+                 "2025-06-29",
+                 "2025-06-30",
+                 
+                 "2025-07-07",
+                 "2025-07-19",
+                 "2025-07-25",
+                 "2025-07-30",
+                 
+                 "2025-08-04",
+                 "2025-08-06",
+                 "2025-08-09"))
+                 
+  bad_dates_year <- bad_dates_map[[as.character(yr)]]
+  if (is.null(bad_dates_year)) bad_dates_year <- character(0)
+  
+  # Accept both "YYYY-mm-dd" and "YYYYmmdd"
+  bad_dates_year <- as.Date(bad_dates_year, tryFormats = c("%Y-%m-%d", "%Y%m%d"))
+  
+  drop_idx <- which(img_dates_sen %in% bad_dates_year)
+  
+  if (length(drop_idx)) {
+    message("Dropping ", length(drop_idx), " Sentinel layers by date: ",
+            paste(format(img_dates_sen[drop_idx], "%Y-%m-%d"), collapse = ", "))
+    sen.dat       <- sen.dat[[-drop_idx]]
+    img_dates_sen <- img_dates_sen[-drop_idx]
+    names(sen.dat) <- format(img_dates_sen, "%Y-%m-%d")
+  }
+  
+  # --- align polygons CRS to raster CRS -----------------------------------------
+  trial.plan.v <- ensure_common_crs(trial.plan, sen.dat)
+  polys_treat <- tryCatch(
+    terra::dissolve(trial.plan.v, "treat_desc"),
+    error = function(e) terra::aggregate(trial.plan.v, by = "treat_desc")
+  )
+  
+  ## JACKIE Do I need this too?
+  # --- Polygon means ---
+  ts_df <- polygon_mean_timeseries(ndvi, polys_treat)
+  
+  # make names unique so dplyr will work
+  ts_df <- as_tibble(ts_df, .name_repair = "unique")
+  
+  last_date_planet <- max(img_dates, na.rm = TRUE)
+  ###
+  
+  # --- DAP & window --------------------------------------------------------------
+  dap_sen <- as.numeric(img_dates_sen - plant_date)
+  
+  # --- polygon means -------------------------------------------------------------
+  
+  ts_df_sen <- polygon_mean_timeseries(sen.dat, polys_treat)
+  
+  # make names unique so dplyr will work
+  ts_df_sen <- as_tibble(ts_df_sen, .name_repair = "unique")
+  
+  # Long table (Â±50 DAP) and cleaning
+  long_df_sen <- ts_df_sen %>%
+    mutate(dap = dap_sen) %>%
+    filter(dap >= -50 & dap <= 150) %>%
+    pivot_longer(-dap, names_to = "treat_desc", values_to = "ndvi") %>%
+    mutate(treat_desc = str_remove(treat_desc, "\\.\\d+$")) %>% # strip .1/.2 suffixes
+    filter(!str_starts(treat_desc, "Buffer"),
+           !str_starts(treat_desc, "Outside Control")) %>%
+    arrange(treat_desc, dap)
+  
+  # Cumulative NDVI (AUC via irregular day spacing)
+  long_df_cum_sen <- long_df_sen %>%
+    arrange(treat_desc, dap) %>%
+    group_by(treat_desc) %>%
+    mutate(
+      days_diff = c(0, diff(dap)),
+      cum_ndvi  = cumsum(ndvi * days_diff)
+    ) %>%
+    ungroup()
+  
+  last_date_sen <- max(img_dates_sen, na.rm = TRUE)
+  
+  
+  
+  p <- ggplot(long_df, aes(x = dap, y = ndvi, color = treat_desc, group = treat_desc)) +
+    geom_line(alpha = 0.25) +
+    geom_smooth(method = "gam", formula = y ~ s(x, k = 8), se = FALSE) +
+    scale_x_continuous(
+      name = "Days after planting (DAP)",
+      sec.axis = sec_axis(
+        trans = ~ plant_date + . ,  # transform DAP into date
+        name = "Date",
+        labels = function(x) format(as.Date(x, origin = "1970-01-01"), "%d-%b") # e.g., 05-Jun
+      )
+    ) +
+    labs(
+      title = paste0("NDVI Timeseries (", yr, ") ",site.info[[1]]),
+      y = "Average NDVI",
+      color = "Treatment"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title      = element_text(hjust = 0.5),
+      axis.title.x    = element_text(size = 16),   # bottom x title
+      axis.title.x.top= element_text(size = 16, margin = ggplot2::margin(b = 10)), # top x title
+      axis.text.x     = element_text(size = 16),   # bottom x tick labels
+      axis.text.x.top = element_text(size = 16),   # top x tick labels
+      axis.title.y    = element_text(size = 16),
+      axis.text.y     = element_text(size = 16)
+    )+
+    annotate("text",
+             x = max(long_df$dap, na.rm = TRUE),
+             y = max(long_df$ndvi, na.rm = TRUE) + 0.05,
+             label = paste("Latest cloud free image date:", format(last_date_planet, "%d-%b-%Y")),
+             hjust = 1, vjust = 0, size = 4, color = "black")
+  
+  p
+  
+  # --- Cumulative NDVI plot ---
+  p_cum <- ggplot(long_df_cum, aes(x = dap, y = cum_ndvi, color = treat_desc, group = treat_desc)) +
+    geom_line(alpha = 0.25) +
+    geom_smooth(method = "gam", formula = y ~ s(x, k = 8), se = FALSE) +
+    labs(
+      title = paste0("Cumulative NDVI Timeseries (", yr, ") ",site.info[[1]]),
+      x = "Days after planting",
+      y = "Cumulative NDVI (AUC)",
+      color = "Treatment"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title      = element_text(hjust = 0.5),
+      axis.title.x    = element_text(size = 16),   # bottom x title
+      axis.title.x.top= element_text(size = 16, margin = ggplot2::margin(b = 10)), # top x title
+      axis.text.x     = element_text(size = 16),   # bottom x tick labels
+      axis.text.x.top = element_text(size = 16),   # top x tick labels
+      axis.title.y    = element_text(size = 16),
+      axis.text.y     = element_text(size = 16)
+    )+
+    annotate("text",
+             x = max(long_df$dap, na.rm = TRUE),
+             y = max(long_df$ndvi, na.rm = TRUE) + 0.05,
+             label = paste("Latest cloud free image date:", format(last_date_planet, "%d-%b-%Y")),
+             hjust = 1, vjust = 0, size = 4, color = "black")
+  
+  # --- Save outputs in year folder ---
+  out_csv_planet      <- file.path(saveDir_year, sprintf("ndvi_growth_curves_planet_%s.csv", yr))
+  out_csv_cum_planet  <- file.path(saveDir_year, sprintf("ndvi_growth_curves_cumulative_planet_%s.csv", yr))
+  out_plot_planet     <- file.path(saveDir_year, sprintf("ndvi_growth_curves_planet_%s.png", yr))
+  out_plot_cum_planet <- file.path(saveDir_year, sprintf("ndvi_growth_curves_cumulative_planet_%s.png", yr))
+  out_rds_planet      <- file.path(saveDir_year, sprintf("ndvi_stack_planet_%s.rds", yr))
+  
+  write.csv(long_df,     out_csv_planet,     row.names = FALSE)
+  write.csv(long_df_cum, out_csv_cum_planet, row.names = FALSE)
+  ggsave(out_plot_planet,     p,     width = 8, height = 5, dpi = 300)
+  ggsave(out_plot_cum_planet, p_cum, width = 8, height = 5, dpi = 300)
+  saveRDS(ndvi, out_rds_planet)
+  
+  #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  ## COMPUTE BY ZONES
+  # ================== 3.x ) Split NDVI growth curves by zones ==================
+  
+  # 1. Ensure zones raster matches CRS and extent
+  zones <- terra::project(zones, sen.dat,method = 'near')
+  names(zones) <- "zone_id"
+  
+  # ================= NDVI growth curves by ZONES (fresh, minimal) =================
+  
+  
+  ## JACKIE PROBLEM
+  #zone_field <- "cluster3" #The dataset doesnt have this name it has  fcl_mdl - let try that
+  names(zones)
+  zone_field <- "fcl_mdl"
+  
+  # --- 1) Read zones (sf) and intersect with strips to get treatment×zone polys --
+  zones_sf <- sf::st_transform(zones.sf, sf::st_crs(trial.plan))  # align CRS
+  
+  # keep only the zone id column + geometry
+  
+  stopifnot(zone_field %in% names(zones_sf))
+  zones_sf <- zones_sf[, c(zone_field, attr(zones_sf, "sf_column"))]
+  
+  # intersection: each strip gets cut by zone polygons
+  ## JACKIE ## 
+  trial.plan_clean <- sf::st_make_valid(trial.plan)
+  zones_sf_clean <- sf::st_make_valid(zones_sf)
+  tz_sf <- suppressWarnings(sf::st_intersection(trial.plan_clean, zones_sf_clean))
+  ###
+  #tz_sf <- suppressWarnings(sf::st_intersection(trial.plan, zones_sf))
+  tz_sf <- dplyr::mutate(tz_sf,
+                         zone_id    = .data[[zone_field]],
+                         treat_zone = paste0(.data$treat_desc, "__Z", .data$zone_id))
+  
+  # (optional) drop tiny slivers if they exist (skip if you prefer)
+  # tz_sf <- tz_sf[sf::st_area(tz_sf) > units::set_units(50, "m^2"), ]  # only if CRS is metric
+  
+  # convert to terra SpatVector in the same CRS as the raster
+  polys_treat_zone <- terra::vect(sf::st_transform(tz_sf, sf::st_crs(sen.dat)))
+  
+  # dissolve by treat_zone to avoid duplicates
+  polys_treat_zone <- tryCatch(
+    terra::dissolve(polys_treat_zone, "treat_zone"),
+    error = function(e) terra::aggregate(polys_treat_zone, by = "treat_zone")
+  )
+  
+  # --- 2) Extract mean NDVI for each layer / polygon (one pass) ------------------
+  means_list <- lapply(seq_len(terra::nlyr(sen.dat)), function(k) {
+    terra::extract(sen.dat[[k]], polys_treat_zone, fun = mean, na.rm = TRUE)[, 2]
+  })
+  mat <- do.call(rbind, means_list)                                # rows = layers, cols = polygons
+  colnames(mat) <- as.character(polys_treat_zone$treat_zone)
+  
+  # --- 3) Build dates & DAP from layer names -------------------------------------
+  #Done above
+  # --- 4) Tidy long with zone kept, window DAP, drop buffers ---------------------
+ #JACKIE - ERROR ? not sure how to fix it?
+  names(mat)
+  
+   long_zone <- tibble::as_tibble(mat, .name_repair = "unique") |>
+    dplyr::mutate(dap = dap_sen) |>
+    tidyr::pivot_longer(-dap, names_to = "treat_zone", values_to = "ndvi") |>
+    tidyr::separate(treat_zone, into = c("treat_desc","zone_id"), sep = "__Z", remove = TRUE) |>
+    dplyr::mutate(zone_id = factor(zone_id)) |>
+    dplyr::filter(dap >= -20, dap <= 150) |>
+    dplyr::filter(!stringr::str_starts(treat_desc, "Buffer"),
+                  !stringr::str_starts(treat_desc, "Outside Control")) |>
+    dplyr::arrange(zone_id, treat_desc, dap)
+  
+  # --- 5) Cumulative NDVI per (zone, treatment), trapezoid from DAP >= 0 ---------
+  long_cum_zone <- long_zone |>
+    dplyr::filter(dap >= 0) |>
+    dplyr::group_by(zone_id, treat_desc, dap) |>
+    dplyr::summarise(ndvi = mean(ndvi, na.rm = TRUE), .groups = "drop") |>
+    dplyr::arrange(zone_id, treat_desc, dap) |>
+    dplyr::group_by(zone_id, treat_desc) |>
+    dplyr::mutate(
+      ndvi_lag = dplyr::lag(ndvi, default = dplyr::first(ndvi)),
+      dap_lag  = dplyr::lag(dap,  default = 0),
+      seg_area = 0.5 * (ndvi + ndvi_lag) * (dap - dap_lag),
+      cum_ndvi = cumsum(seg_area)
+    ) |>
+    dplyr::ungroup()
+  
+  # --- 6) Palette (Control -> black) and top-axis date breaks --------------------
+  
+  # --- 7) NDVI by zone (faceted) -------------------------------------------------
+  plant_date_date <- as.Date(plant_date)
+  top_breaks <- as.numeric(seq(
+    plant_date_date,
+    plant_date_date + max(long_zone$dap, na.rm = TRUE),
+    by = "4 weeks"
+  ))
+  
+  legend_rows <- 2  # ← tweak to 1/2/3 to control how “chunky” the legend is
+  
+  # --- Palette (Control → black, robust to label variants) ---
+  treat_lvls <- levels(factor(long_zone$treat_desc))
+  base_cols  <- scales::hue_pal()(length(treat_lvls)); names(base_cols) <- treat_lvls
+  
+  ctrl_candidates <- c("Control (-Tillage -Lime)", "Control")
+  ctrl_name <- intersect(ctrl_candidates, names(base_cols))[1]
+  if (!is.na(ctrl_name)) base_cols[ctrl_name] <- "black"
+  
+  # --- Plot: 3 zones in one row, compact legend, bigger x-axis fonts ---
+  p_zone_wide <- ggplot(long_zone, aes(dap, ndvi, color = treat_desc, group = treat_desc)) +
+    geom_smooth(method = "gam", formula = y ~ s(x, k = 8), se = FALSE, linewidth = 0.9) +
+    scale_color_manual(values = base_cols) +
+    scale_x_continuous(
+      name = "Days after planting (DAP)",
+      sec.axis = sec_axis(
+        trans  = ~ as.numeric(plant_date_date) + .,
+        name   = "Date",
+        labels = function(x) format(as.Date(x, origin = "1970-01-01"), "%d-%b"),
+        breaks = top_breaks
+      )
+    ) +
+    facet_wrap(~ zone_id, ncol = 3#, 
+               #labeller = zone_labeller
+    ) +
+    labs(
+      title = paste0("**<span style='font-size:18pt;'>", site.info[[1]],
+                     "</span>**<br>Sentinel NDVI by Zone (", yr, ")"),
+      y = "Average NDVI", color = "Treatment"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title       = ggtext::element_markdown(hjust = 0.5, lineheight = 1.1),
+      strip.text       = element_text(size = 12, face = "bold"),
+      legend.position  = "bottom",
+      legend.box       = "vertical",
+      legend.justification = "center",
+      # bigger x-axis fonts
+      axis.text.x      = element_text(size = 14),
+      axis.title.x     = element_text(size = 16),
+      axis.text.x.top  = element_text(size = 8),
+      axis.title.x.top = element_text(size = 12)
+    ) 
+  
+  # Emphasise Control in-plot only (legend unchanged)
+  if (!is.na(ctrl_name)) {
+    p_zone_wide <- p_zone_wide +
+      geom_smooth(
+        data = subset(long_zone, treat_desc == ctrl_name),
+        aes(dap, ndvi, group = treat_desc),
+        method = "gam", formula = y ~ s(x, k = 8), se = FALSE,
+        color = "black", linewidth = 1.2, show.legend = FALSE
+      )
+  }
+  
+  p_zone_wide <- p_zone_wide +
+    labs(
+      subtitle = paste("Last cloud-free Sentinel image:", 
+                       format(last_date_sen, "%d %b %Y"))
+    )
+  
+  p_zone_wide
+  
+  ###JACKIE####
+  out_plot_sentinel_zone     <- file.path(saveDir_year, sprintf("ndvi_growth_curves_sentinel_zone_%s.png", yr))
+  ggsave(out_plot_sentinel_zone,     p_zone_wide,     width = 8, height = 5, dpi = 300)
+  
+ 
