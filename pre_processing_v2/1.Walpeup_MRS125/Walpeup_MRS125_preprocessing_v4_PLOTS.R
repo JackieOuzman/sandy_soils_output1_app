@@ -6,7 +6,14 @@ library(tidyverse)
 # data for plots
 site_1 <- "1.Walpeup_MRS125"
 year <- "2025"
-ratio_type <- "ndvi"
+ratio_type <- 
+  #  "NDVI" 
+  #"EVI2" 
+# "ExG" 
+# "NDMI" 
+ "NDRE" 
+
+
 Dir <- paste0("C:/Users/ouz001/working_from_home_post_Sep2022/sandy_soils_output1_app/Pre_processing_v2/",
               site_1, "/preprocessing_output")
 saveDir_year <- file.path(Dir, as.character(year))

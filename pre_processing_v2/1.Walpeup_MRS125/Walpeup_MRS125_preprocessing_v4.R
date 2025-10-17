@@ -43,11 +43,11 @@ zones.sf <- st_read(paste0(readDir,"/3.Covariates/6.Clusters_Zones/FINAL/",
 
 # ======================== 3.1 ) Define Functions========================
 
-# PlanetScope SR 8-band convention: Red = band 6, NIR = band 8
-ratio_from_stack <- function(x) {
-  red <- x[[6]]; nir <- x[[8]]
-  (nir - red) / (nir + red)
-}
+# # PlanetScope SR 8-band convention: Red = band 6, NIR = band 8
+# ratio_from_stack <- function(x) {
+#   red <- x[[6]]; nir <- x[[8]]
+#   (nir - red) / (nir + red)
+# }
 
 # Read Planet 8b SR clips in a season folder, compute ratio, align & reproject to EPSG:4326
 read_planet_ratio <- function(season_dir) {
@@ -133,11 +133,12 @@ i <- 2 ###JACKIE CHANGES THIS
   saveDir_year <- file.path(Dir, as.character(yr))
   fs::dir_create(saveDir_year)
   
-  ratio_name <- "NDVI" 
-  #EVI2 
-  # ExG 
-  # NDMI 
-  # NDRE 
+  ratio_name <- 
+  #  "NDVI" 
+  #"EVI2" 
+  # "ExG" 
+  # "NDMI" 
+   "NDRE" 
   
   ratio_type <- paste0(ratio_name , "_Stack")
   
@@ -276,8 +277,6 @@ i <- 2 ###JACKIE CHANGES THIS
   
   
   # --- Save outputs in year folder  ---
-  # out_csv_sentinel      <- file.path(saveDir_year, sprintf("ndvi_growth_curves_sentinel_%s.csv", yr))
-  # out_csv_cum_sentinel  <- file.path(saveDir_year, sprintf("ndvi_growth_curves_cumulative_sentinel_%s.csv", yr))
   
    out_csv_sentinel      <- file.path(saveDir_year, paste0(ratio_name , "_growth_curves_sentinel_", yr,".csv"))
    out_csv_cum_sentinel  <- file.path(saveDir_year, paste0(ratio_name , "_growth_curves_cumulative_sentinel_", yr,".csv"))
