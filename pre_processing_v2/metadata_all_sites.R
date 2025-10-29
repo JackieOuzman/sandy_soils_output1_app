@@ -25,7 +25,7 @@ suppressPackageStartupMessages({
   library(tidyverse)
 })
 
-# ====================== PATHS ======================
+# ====================== Sites ======================
 #site <- "1.Walpeup_MRS125"
 #site <- "2.Crystal_Brook_Brians_House"
 # site <- "3.Wynarka_Mervs_West"
@@ -33,7 +33,7 @@ suppressPackageStartupMessages({
 # site <- "5.Walpeup_Gums"
  site <- "6.Crystal_Brook_Randals"
 
-
+# ====================== PATHS ======================
 readDir <- paste0("//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}/work/Output-1/", site)
 metadata_path <- "//fs1-cbr.nexus.csiro.au/{lw-soildatarepo}/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/"
 
