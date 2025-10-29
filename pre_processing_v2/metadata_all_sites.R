@@ -27,11 +27,11 @@ suppressPackageStartupMessages({
 
 # ====================== Sites ======================
 #site <- "1.Walpeup_MRS125"
-#site <- "2.Crystal_Brook_Brians_House"
+site <- "2.Crystal_Brook_Brians_House"
 # site <- "3.Wynarka_Mervs_West"
 # site <- "4.Wharminda"
 # site <- "5.Walpeup_Gums"
- site <- "6.Crystal_Brook_Randals"
+# site <- "6.Crystal_Brook_Randals"
 
 # ====================== PATHS ======================
 readDir <- paste0("//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}/work/Output-1/", site)
@@ -69,6 +69,8 @@ soil <- rast(file.path(readDir, file_path_details$`location of key soil tif`))
 
 
 zones.sf <- st_read(paste0(readDir,file_path_details$`location of zone shp`))
+zones <- rast(file.path(readDir, file_path_details$`location of zone tif`))
+
 
 
 ################################################################################
@@ -91,14 +93,15 @@ site.info <- list(
   boundary   = boundary,      # sf
   trial_plan = trial.plan,    # sf
   seasons    = seasons,        # tibble
-  zones = zones.sf            # sf
+  zones_sf = zones.sf,         # shapefile
+  zones =     zones           #raster /tif
 )
 class(site.info) <- c("ssii_site", class(site.info))
 
 # --- optional: quick validator/helper ---
 validate_site <- function(x) {
   stopifnot(inherits(x, "ssii_site"))
-  stopifnot(all(c("site_id","boundary","trial_plan","seasons", "zones") %in% names(x)))
+  stopifnot(all(c("site_id","boundary","trial_plan","seasons", "zones", "zones_sf") %in% names(x)))
   stopifnot(st_crs(x$boundary)$epsg == 4326, st_crs(x$trial_plan)$epsg == 4326)
   stopifnot(is.double(x$seasons$year))
   invisible(x)
