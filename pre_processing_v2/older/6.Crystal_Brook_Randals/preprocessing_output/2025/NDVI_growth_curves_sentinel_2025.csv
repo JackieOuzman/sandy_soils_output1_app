@@ -1,0 +1,91 @@
+"dap","treat_desc","ratio"
+-18,"Chicken Litter",0.0911253810576771
+-16,"Chicken Litter",0.0167421550847749
+-13,"Chicken Litter",0.058543515837063
+-3,"Chicken Litter",0.00678195217935117
+37,"Chicken Litter",0.0753832234110197
+47,"Chicken Litter",0.351133295213399
+57,"Chicken Litter",0.424137174759222
+62,"Chicken Litter",0.464566578359708
+64,"Chicken Litter",0.165757710842983
+92,"Chicken Litter",0.192333668531121
+97,"Chicken Litter",0.381871261188517
+102,"Chicken Litter",0.490114761759406
+104,"Chicken Litter",0.467753158477337
+107,"Chicken Litter",0.375414550223428
+112,"Chicken Litter",0.383086314829795
+-18,"Control",0.0737594451498369
+-16,"Control",0.0148339621163955
+-13,"Control",0.052431626052692
+-3,"Control",0.00804702718822478
+37,"Control",0.0629431488612619
+47,"Control",0.418107977201199
+57,"Control",0.474331372513853
+62,"Control",0.51037870861333
+64,"Control",0.165195532143116
+92,"Control",0.190711550671479
+97,"Control",0.299427627361026
+102,"Control",0.474826561993566
+104,"Control",0.477253878167991
+107,"Control",0.447752503999348
+112,"Control",0.384128444410604
+-18,"Rip",0.0702665779555653
+-16,"Rip",0.0165206119784637
+-13,"Rip",0.0497905025143682
+-3,"Rip",0.0101459518529153
+37,"Rip",0.062743183998621
+47,"Rip",0.428711534650237
+57,"Rip",0.485193191671077
+62,"Rip",0.482291788966567
+64,"Rip",0.169665162302094
+92,"Rip",0.144946600689932
+97,"Rip",0.239411584435054
+102,"Rip",0.465163818847986
+104,"Rip",0.494084460315881
+107,"Rip",0.530080478132507
+112,"Rip",0.397458433185095
+-18,"Rip + PasInclusion",0.0711966908704012
+-16,"Rip + PasInclusion",0.0167129588814385
+-13,"Rip + PasInclusion",0.0511283094111161
+-3,"Rip + PasInclusion",0.00978677469389274
+37,"Rip + PasInclusion",0.0641353608568748
+47,"Rip + PasInclusion",0.417382617027332
+57,"Rip + PasInclusion",0.480049416550204
+62,"Rip + PasInclusion",0.503791892885143
+64,"Rip + PasInclusion",0.167778421543602
+92,"Rip + PasInclusion",0.157373614354521
+97,"Rip + PasInclusion",0.268668894584362
+102,"Rip + PasInclusion",0.466385929757713
+104,"Rip + PasInclusion",0.493774544479501
+107,"Rip + PasInclusion",0.499478400517733
+112,"Rip + PasInclusion",0.396671543263981
+-18,"Rip + PasInclusion + Chicken Litter",0.0897495655282851
+-16,"Rip + PasInclusion + Chicken Litter",0.0146681086344958
+-13,"Rip + PasInclusion + Chicken Litter",0.0571230656677677
+-3,"Rip + PasInclusion + Chicken Litter",0.00931377014109579
+37,"Rip + PasInclusion + Chicken Litter",0.0644384979480697
+47,"Rip + PasInclusion + Chicken Litter",0.41587520059078
+57,"Rip + PasInclusion + Chicken Litter",0.481428118867259
+62,"Rip + PasInclusion + Chicken Litter",0.5176406743065
+64,"Rip + PasInclusion + Chicken Litter",0.164079499917646
+92,"Rip + PasInclusion + Chicken Litter",0.203864433352024
+97,"Rip + PasInclusion + Chicken Litter",0.321618628982575
+102,"Rip + PasInclusion + Chicken Litter",0.509897164183278
+104,"Rip + PasInclusion + Chicken Litter",0.500737727842023
+107,"Rip + PasInclusion + Chicken Litter",0.432663083845569
+112,"Rip + PasInclusion + Chicken Litter",0.397682946151303
+-18,"Rip + PasInclusion + Chicken Litter +Dry",0.0792650737575371
+-16,"Rip + PasInclusion + Chicken Litter +Dry",0.0136602559181297
+-13,"Rip + PasInclusion + Chicken Litter +Dry",0.0525467052076855
+-3,"Rip + PasInclusion + Chicken Litter +Dry",0.0112733292821659
+37,"Rip + PasInclusion + Chicken Litter +Dry",0.0544951485952594
+47,"Rip + PasInclusion + Chicken Litter +Dry",0.422024890889217
+57,"Rip + PasInclusion + Chicken Litter +Dry",0.478625774383545
+62,"Rip + PasInclusion + Chicken Litter +Dry",0.425691458648139
+64,"Rip + PasInclusion + Chicken Litter +Dry",0.168882290268466
+92,"Rip + PasInclusion + Chicken Litter +Dry",0.13485407018966
+97,"Rip + PasInclusion + Chicken Litter +Dry",0.212355501351565
+102,"Rip + PasInclusion + Chicken Litter +Dry",0.465880084864415
+104,"Rip + PasInclusion + Chicken Litter +Dry",0.490654168555336
+107,"Rip + PasInclusion + Chicken Litter +Dry",0.556111720356628
+112,"Rip + PasInclusion + Chicken Litter +Dry",0.39755287657689
