@@ -27,11 +27,11 @@ suppressPackageStartupMessages({
 
 # ====================== Sites ======================
 #site <- "1.Walpeup_MRS125"
-site <- "2.Crystal_Brook_Brians_House"
+#site <- "2.Crystal_Brook_Brians_House"
 # site <- "3.Wynarka_Mervs_West"
 # site <- "4.Wharminda"
 # site <- "5.Walpeup_Gums"
-# site <- "6.Crystal_Brook_Randals"
+ site <- "6.Crystal_Brook_Randals"
 
 # ====================== PATHS ======================
 readDir <- paste0("//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}/work/Output-1/", site)

@@ -15,11 +15,11 @@ suppressPackageStartupMessages({
 
 # ====================== Sites ======================
 #site <- "1.Walpeup_MRS125"
-site <- "2.Crystal_Brook_Brians_House"
-# site <- "3.Wynarka_Mervs_West"
-# site <- "4.Wharminda"
-# site <- "5.Walpeup_Gums"
-#site <- "6.Crystal_Brook_Randals"
+#site <- "2.Crystal_Brook_Brians_House"
+#site <- "3.Wynarka_Mervs_West"
+#site <- "4.Wharminda"
+#site <- "5.Walpeup_Gums"
+site <- "6.Crystal_Brook_Randals"
 
 # ====================== Year ======================
 year_of_analysis <- 2025
@@ -193,11 +193,11 @@ if (length(drop_idx)) {
 sen.dat
 # #Note: Crystal Brook straddles 2x tiles, but the difference is not noticeable
 # #We can simply just drop one of the tile sets.
-# nm <- names(sen.dat)
+ nm <- names(sen.dat)
 
 # hqd_idx <- grep("HQD", nm, perl = TRUE)
 # # If your names always have underscores around the tile, this also works:
-# # hqd_idx <- grep("_T53HQD(_|$)", nm)
+#  hqd_idx <- grep("_T53HQD(_|$)", nm)
 # 
 # if (length(hqd_idx)) {
 #   message("Dropping ", length(hqd_idx), " layers from tile T53HQD")
@@ -206,7 +206,12 @@ sen.dat
 #   message("No T53HQD layers present; nothing to drop.")
 # }
 
-sen.dat
+ 
+# This might also work
+
+# Keep only the first occurrence of each unique name
+sen.dat <- sen.dat[[!duplicated(nm)]]
+
    
   # --- align polygons CRS to raster CRS -----------------------------------------
   trial.plan <- site.info$trial_plan
@@ -300,7 +305,13 @@ sen.dat
   zones_sf <- zones_sf[, c(zone_field, attr(zones_sf, "sf_column"))]
   
   # intersection: each strip gets cut by zone polygons
+  # Make geometries valid before intersection
+  trial.plan <- sf::st_make_valid(trial.plan)
+  zones_sf <- sf::st_make_valid(zones_sf)
+  
+  # Then run intersection
   tz_sf <- suppressWarnings(sf::st_intersection(trial.plan, zones_sf))
+ 
   tz_sf <- dplyr::mutate(tz_sf,
                          zone_id    = .data[[zone_field]],
                          treat_zone = paste0(.data$treat_desc, "__Z", .data$zone_id))
@@ -355,8 +366,7 @@ sen.dat
  
   
   # --- Save outputs in year folder  ---
-  # out_csv_zonesentinel      <- file.path(saveDir_year, sprintf("ndvi_growth_curves_sentinel_ZONE%s.csv", yr))
-  # out_csv_zonecum_sentinel  <- file.path(saveDir_year, sprintf("ndvi_growth_curves_cumulative_sentinel_ZONE%s.csv", yr))
+ 
   out_csv_zonesentinel      <- file.path(saveDir_year, paste0(ratio_name, "_growth_curves_sentinel_ZONE_", year_of_analysis, ".csv"))
   out_csv_zonecum_sentinel  <- file.path(saveDir_year, paste0(ratio_name, "_growth_curves_cumulative_sentinel_ZONE_", year_of_analysis, ".csv"))
   
