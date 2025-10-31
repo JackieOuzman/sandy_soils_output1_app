@@ -14,7 +14,7 @@ library(sf)
 
 node_name <- Sys.info()["nodename"]
 
-if (node_name=="TOPAZ-GW" ) {
+if (node_name=="PENTAGON-GW" ) {
   location_files_for_app <- 'B:/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/'
 } else {
   location_files_for_app <- "/datasets/work/lw-soildatarepo/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/"
@@ -32,7 +32,7 @@ sites <- list(
   "site3" = "3.Wynarka_Mervs_West",
   "site4" = "4.Wharminda",
   "site5" = "5.Walpeup_Gums",
-  "site6" = "6.CrystalBrook_Randals"
+  "site6" = "6.Crystal_Brook_Randals" #Check this
 )
 
 yr1 <- "2024"
