@@ -17,14 +17,18 @@ suppressPackageStartupMessages({
 })
 
 # ====================== Sites ======================
-site <- "1.Walpeup_MRS125"
-site_number <- "1.Walpeup_MRS125"
-site_name <- "Walpeup_MRS125"
+# site <- "1.Walpeup_MRS125"
+# site_number <- "1.Walpeup_MRS125"
+# site_name <- "Walpeup_MRS125"
 
 #site <- "2.Crystal_Brook_Brians_House"
 #site <- "3.Wynarka_Mervs_West"
 #site <- "4.Wharminda"
-#site <- "5.Walpeup_Gums"
+
+site <- "5.Walpeup_Gums"
+site_number <- "5.Walpeup_Gums"
+site_name <- "Walpeup_Gums"
+
 #site <- "6.Crystal_Brook_Randals"
 
 # ====================== Year ======================
@@ -124,14 +128,23 @@ base_cols
 ## fix up any site that the control is not listed as 'control'
 long_df_sen <- long_df_sen %>% mutate(`Treatment Name`= case_when(
     treat_desc == "Control (-Tillage -Lime)" ~ "Control",
+    treat_desc =="Control +Lime (3t)" ~ "Control +Lime",
+    treat_desc =="Rip + Lime (3t)" ~ "Rip + Lime",
+    treat_desc =="Bednar + Lime (3t) + Future" ~ "Bednar + Lime + Future",
     .default = treat_desc ))
 
 long_df_cum_sen <- long_df_cum_sen %>%  mutate(`Treatment Name`= case_when(
     treat_desc == "Control (-Tillage -Lime)" ~ "Control",
+    treat_desc =="Control +Lime (3t)" ~ "Control +Lime",
+    treat_desc =="Rip + Lime (3t)" ~ "Rip + Lime",
+    treat_desc =="Bednar + Lime (3t) + Future" ~ "Bednar + Lime + Future",
     .default = treat_desc ))
 
 long_zone <- long_zone %>%  mutate(`Treatment Name`= case_when(
     treat_desc == "Control (-Tillage -Lime)" ~ "Control",
+    treat_desc =="Control +Lime (3t)" ~ "Control +Lime",
+    treat_desc =="Rip + Lime (3t)" ~ "Rip + Lime",
+    treat_desc =="Bednar + Lime (3t) + Future" ~ "Bednar + Lime + Future",
     .default = treat_desc ))
 
 ### append the colours to all the df
@@ -288,13 +301,6 @@ ggsave(out_plot_cum_sentinel, p_cum_sen, width = 8, height = 5, dpi = 300)
 
 legend_rows <- 2  # ← tweak to 1/2/3 to control how “chunky” the legend is
 
-# --- Palette (Control → black, robust to label variants) ---
-# treat_lvls <- levels(factor(long_zone$treat_desc))
-# base_cols  <- scales::hue_pal()(length(treat_lvls)); names(base_cols) <- treat_lvls
-
-# ctrl_candidates <- c("Control (-Tillage -Lime)", "Control")
-# ctrl_name <- intersect(ctrl_candidates, names(base_cols))[1]
-# if (!is.na(ctrl_name)) base_cols[ctrl_name] <- "black"
 
 
 # Zone labels used only for facet strip text
@@ -307,22 +313,22 @@ zone_labels <- readxl::read_excel(
   pull("file name")
 
 
-# zone_labels <- file_path_details %>% 
-#   filter(Site == site ) %>% 
-#   select(`zone label names` )
-
 
 
 list_of_zone_labels_1 <- as.list(zone_labels)
 list_of_zone_labels_2 <- unlist(strsplit(list_of_zone_labels_1[[1]], ","))
-#list_of_zone_labels_2 <- unlist(strsplit(list_of_zone_labels_1$`zone label names`, ","))
-#names(list_of_zone_labels_2) <- unique(long_zone$zone_id)
+
 zone_labeller <- setNames(
-  paste0(sub("=", ": ", list_of_zone_labels_2)),  # "1: Swale" etc
-  sub("=.*", "", list_of_zone_labels_2)           # "1", "2", "3"
+  trimws(paste0(sub("=", ": ", list_of_zone_labels_2))),
+  trimws(sub("=.*", "", list_of_zone_labels_2))
 )
 
+unique(long_zone$zone_id)
+
+
 # --- Plot: 3 zones in one row, compact legend, bigger x-axis fonts ---
+long_zone <- long_zone %>% mutate(zone_id = as.character(zone_id))
+
 p_zone_wide <- ggplot(long_zone, aes(dap, ratio, color = `Treatment Name`, group = `Treatment Name`)) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 8), se = FALSE, linewidth = 0.9) +
   scale_color_manual(values = base_cols) +
@@ -336,6 +342,7 @@ p_zone_wide <- ggplot(long_zone, aes(dap, ratio, color = `Treatment Name`, group
     # )
   ) +
   facet_wrap(~zone_id, labeller = as_labeller(zone_labeller))+
+  
   labs(
     title = paste0("**<span style='font-size:18pt;'>", site,
                    "</span>**<br>Sentinel by Zone (", year_of_analysis, ")"),
