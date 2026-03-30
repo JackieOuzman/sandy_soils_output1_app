@@ -43,14 +43,12 @@ headDir <- paste0(dir, "/work/Output-1/", site_number)
 metadata_path <- paste0(dir,"/work/Output-1/0.Site-info/")
 metadata_file_name <- "names of treatments per site 2025 metadata and other info.xlsx"
 
-
-headDir_Jaxs <- paste0(headDir,"/Jackie")
-
+saveDir <- paste0(dir, "/work/Output-1/", site_number,"/7.In_Season_data/25/7.Growth_curves")
 readDir <- paste0("//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}/work/Output-1/", site)
 
 ## JACKIE - Change the saved directory
 
-Dir <- headDir_Jaxs
+#Dir <- headDir_Jaxs
 
 #saveDir_year <- file.path(Dir, as.character(year_of_analysis))
 #fs::dir_create(saveDir_year)
@@ -59,22 +57,50 @@ Dir <- headDir_Jaxs
 
 
 
-# ====================== METADATA ======================
-site.info <- readRDS(paste0(Dir, "/site_info.rds"))
+# ====================== read in collated data from step1=====================
+site.info <- readRDS(paste0(saveDir, "/site_info.rds"))
+
+#========= each site has a different extension for sential images=============
+extension_map <- c(
+  "1.Walpeup_MRS125"              = "MRS125",
+  "2.Crystal_Brook_Brians_House"  = "BHO",
+  "3.Wynarka_Mervs_West"          = "MER",
+  "4.Wharminda"                   = "WOD",
+  "5.Walpeup_Gums"                = "GUM",
+  "6.Crystal_Brook_Randals"       = "RAN"
+)
+
+
+extension <- extension_map[[site_number]]
+
+#========= each site has a different name for the zones=============
+grid_code_details <- c(
+  "1.Walpeup_MRS125"              = "gridcode",
+  "2.Crystal_Brook_Brians_House"  = "xx",
+  "3.Wynarka_Mervs_West"          = "xx",
+  "4.Wharminda"                   = "xx",
+  "5.Walpeup_Gums"                = "xx",
+  "6.Crystal_Brook_Randals"       = "xx"
+)
+
+
+grid_code <- grid_code_details[[site_number]]
 
 # ====================== METADATA ======================
 
-file_path_details <- readxl::read_excel(
-  paste0(metadata_path,"names of treatments per site 2025 metadata and other info.xlsx"),
-  sheet = "location of file and details") %>% 
-  filter(Site == site)
+# file_path_details <- readxl::read_excel(
+#   paste0(metadata_path,metadata_file_name),
+#   sheet = "file location etc") %>% 
+#   filter(Site == site)
+# 
+# site_extension <- file_path_details$`sential file name extension`
 
-site_extension <- file_path_details$`sential file name extension`
+
 
 # ====================== Zones shape file and tif ======================  
-zones <- site.info$zones #doesnt like this
+zones <- site.info$zones #?not sure this is working
 zones_sf <- site.info$zones_sf
-zone_field <- file_path_details$`zone names clm heading name`
+zones_sf <- zones_sf %>% rename(zone = !!grid_code)
 
 # ====================== list of bad dates for satellite ======================
 bad_dates <- readxl::read_excel(
@@ -134,9 +160,9 @@ ensure_common_crs <- function(polygons, rasters) {
 
   seasons <- site.info$seasons
   seasons <- seasons %>%
-    filter(year == year_of_analysis) %>%
-    mutate(yr = as.numeric(year),
-           plant_date = as.Date(plant_date)
+    dplyr::filter(Year == year_of_analysis) %>%
+    dplyr::mutate(yr = as.numeric(Year),
+           plant_date = as.Date(`Sowing date`)
            )
            
   
@@ -162,12 +188,13 @@ ensure_common_crs <- function(polygons, rasters) {
                         substr(year_of_analysis, 3, 4), 
                         "2.Satellite_Imagery",
                         "Sentinel", 
-                         paste0(ratio_type, "_", site_extension, ".tif"))
+                         paste0(ratio_type, "_", extension, ".tif"))
                                                                   
   if (!file.exists(sen_path)) stop("Sentinel stack not found: ", sen_path)
   
   sen.dat <- terra::rast(sen_path)
-  sen.dat <- terra::project(sen.dat,'epsg:4326')
+  sen.dat <- terra::project(sen.dat,'epsg:7854')
+  #sen.dat <- terra::project(sen.dat,'epsg:4326')
   nm <- names(sen.dat)
   
  
@@ -187,7 +214,7 @@ ensure_common_crs <- function(polygons, rasters) {
   
   img_dates_sen <- as.Date(dates_chr, format = "%Y%m%d")
   
-  # ---- 2) Make order deterministic: sort by date (oldest â newest) ----
+  # ---- 2) Make order deterministic: sort by date (oldest to newest) ----
   o <- order(img_dates_sen)
   sen.dat        <- sen.dat[[o]]
   img_dates_sen  <- img_dates_sen[o]
@@ -294,15 +321,15 @@ sen.dat <- sen.dat[[!duplicated(nm)]]
   
   # --- Save outputs in year folder  ---
   
-   out_csv_sentinel      <- file.path(saveDir_year, paste0(ratio_name , "_growth_curves_sentinel_", year_of_analysis,".csv"))
-   out_csv_cum_sentinel  <- file.path(saveDir_year, paste0(ratio_name , "_growth_curves_cumulative_sentinel_", year_of_analysis,".csv"))
+out_csv_sentinel      <- file.path(saveDir, paste0("/",ratio_name , "_growth_curves_sentinel_", year_of_analysis,".csv"))
+out_csv_cum_sentinel  <- file.path(saveDir, paste0("/",ratio_name , "_growth_curves_cumulative_sentinel_", year_of_analysis,".csv"))
   
-  write.csv(long_df_sen,     out_csv_sentinel,     row.names = FALSE)
-  write.csv(long_df_cum_sen, out_csv_cum_sentinel, row.names = FALSE)
+write.csv(long_df_sen,     out_csv_sentinel,     row.names = FALSE)
+write.csv(long_df_cum_sen, out_csv_cum_sentinel, row.names = FALSE)
   
   
-  metadata_processing <- file.path(saveDir_year, paste0("metadata_growth_curves_sentinel", year_of_analysis,".csv"))
-  write.csv(last_date_sen,     metadata_processing,     row.names = FALSE)
+metadata_processing <- file.path(saveDir, paste0("metadata_growth_curves_sentinel", year_of_analysis,".csv"))
+write.csv(last_date_sen,     metadata_processing,     row.names = FALSE)
   
   
   
@@ -317,32 +344,40 @@ sen.dat <- sen.dat[[!duplicated(nm)]]
   # names(zones) <- "zone_id"
   # 
   # ================= ratio growth curves by ZONES (fresh, minimal) =================
+
+
+zones_sf  
+trial.plan  
+
+
+# --- 1) Read zones (sf) and intersect with strips to get treatment×zone polys --
+zones_sf <- sf::st_transform(zones_sf, sf::st_crs(trial.plan))  # align CRS
   
-  
-  # --- 1) Read zones (sf) and intersect with strips to get treatment×zone polys --
-  zones_sf <- sf::st_transform(zones_sf, sf::st_crs(trial.plan))  # align CRS
-  
-  # keep only the zone id column + geometry
-  stopifnot(zone_field %in% names(zones_sf))
-  zones_sf <- zones_sf[, c(zone_field, attr(zones_sf, "sf_column"))]
+# keep only the zone id column + geometry
+zones_sf <- zones_sf %>% dplyr::select(zone)
+#stopifnot(zone_field %in% names(zones_sf))
+#zones_sf <- zones_sf[, c(zone_field, attr(zones_sf, "sf_column"))]
   
   # intersection: each strip gets cut by zone polygons
   # Make geometries valid before intersection
-  trial.plan <- sf::st_make_valid(trial.plan)
-  zones_sf <- sf::st_make_valid(zones_sf)
+trial.plan <- sf::st_make_valid(trial.plan)
+zones_sf <-   sf::st_make_valid(zones_sf)
+names(zones_sf)
+names(trial.plan)
   
   # Then run intersection
-  tz_sf <- suppressWarnings(sf::st_intersection(trial.plan, zones_sf))
- 
-  tz_sf <- dplyr::mutate(tz_sf,
-                         zone_id    = .data[[zone_field]],
+tz_sf <- suppressWarnings(sf::st_intersection(trial.plan, zones_sf))
+plot(tz_sf) 
+tz_sf <- dplyr::mutate(tz_sf,
+                         #zone_id    = .data[[zone_field]],#I removed the zone_field
+                         zone_id    = zone,
                          treat_zone = paste0(.data$treat_desc, "__Z", .data$zone_id))
   
   # (optional) drop tiny slivers if they exist (skip if you prefer)
   # tz_sf <- tz_sf[sf::st_area(tz_sf) > units::set_units(50, "m^2"), ]  # only if CRS is metric
   
-  # convert to terra SpatVector in the same CRS as the raster
-  polys_treat_zone <- terra::vect(sf::st_transform(tz_sf, sf::st_crs(sen.dat)))
+# convert to terra SpatVector in the same CRS as the raster
+polys_treat_zone <- terra::vect(sf::st_transform(tz_sf, sf::st_crs(sen.dat)))
   
   # dissolve by treat_zone to avoid duplicates
   polys_treat_zone <- tryCatch(
@@ -389,13 +424,13 @@ sen.dat <- sen.dat[[!duplicated(nm)]]
   
   # --- Save outputs in year folder  ---
  
-  out_csv_zonesentinel      <- file.path(saveDir_year, paste0(ratio_name, "_growth_curves_sentinel_ZONE_", year_of_analysis, ".csv"))
-  out_csv_zonecum_sentinel  <- file.path(saveDir_year, paste0(ratio_name, "_growth_curves_cumulative_sentinel_ZONE_", year_of_analysis, ".csv"))
+out_csv_zonesentinel      <- file.path(saveDir, paste0(ratio_name, "_growth_curves_sentinel_ZONE_", year_of_analysis, ".csv"))
+out_csv_zonecum_sentinel  <- file.path(saveDir, paste0(ratio_name, "_growth_curves_cumulative_sentinel_ZONE_", year_of_analysis, ".csv"))
   
   
   
-  write.csv(long_zone,     out_csv_zonesentinel,     row.names = FALSE)
-  write.csv(long_cum_zone, out_csv_zonecum_sentinel, row.names = FALSE)
+write.csv(long_zone,     out_csv_zonesentinel,     row.names = FALSE)
+write.csv(long_cum_zone, out_csv_zonecum_sentinel, row.names = FALSE)
   
   
   

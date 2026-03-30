@@ -48,16 +48,19 @@ suppressPackageStartupMessages({
 readDir <- paste0("//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}/work/Output-1/", site)
 
 dir <- "//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}"
-headDir <- paste0(dir, "/work/Output-1/", site_number)
+headDir <- paste0(dir, "/work/Output-1/", site_number,"/7.In_Season_data/25/7.Growth_curves")
+saveDir <- headDir
 
 metadata_path <- paste0(dir,"/work/Output-1/0.Site-info/")
 metadata_file_name <- "names of treatments per site 2025 metadata and other info.xlsx"
 
 ## JACKIE - Change the saved directory
 
-saveDir <- paste0("C:/Users/ouz001/working_from_home_post_Sep2022/sandy_soils_output1_app/Pre_processing_v2/",
-                  site, "/preprocessing_output")
+# saveDir <- paste0("C:/Users/ouz001/working_from_home_post_Sep2022/sandy_soils_output1_app/Pre_processing_v2/",
+#                   site, "/preprocessing_output")
 #saveDir <- paste0("//fs1-cbr.nexus.csiro.au/{lw-soildatarepo}/work/Shiny/Apps/Stirling/GRDCSandySoilsII/Output1Viewer/Current/Files/",site_1)
+
+
 
 ################################################################################
 ######################## 1) Read in metadata info file names and path ##########
@@ -119,14 +122,13 @@ class(site.info) <- c("ssii_site", class(site.info))
 validate_site <- function(x) {
   stopifnot(inherits(x, "ssii_site"))
   stopifnot(all(c("site_id","boundary","trial_plan","seasons", "zones", "zones_sf") %in% names(x)))
-  #stopifnot(st_crs(x$boundary)$epsg == 4326, st_crs(x$trial_plan)$epsg == 4326)
-  stopifnot(is.double(x$seasons$year))
+  stopifnot(st_crs(x$boundary)$epsg == 7854, st_crs(x$trial_plan)$epsg == 7854)
+  stopifnot(is.double(x$seasons$Year))
   invisible(x)
 }
 validate_site(site.info)
 
 # --- save ---
-#saveRDS(site.info, file.path(saveDir, "site_info.rds"))
-headDir_Jaxs <- paste0(headDir,"/Jackie")
-saveRDS(site.info, file.path(headDir_Jaxs, "site_info.rds"))
+saveRDS(site.info, file.path(saveDir, "site_info.rds"))
+
 
