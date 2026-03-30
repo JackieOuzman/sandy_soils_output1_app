@@ -21,9 +21,9 @@ suppressPackageStartupMessages({
 # site_number <- "1.Walpeup_MRS125"
 # site_name <- "Walpeup_MRS125"
 
-site <-"2.Crystal_Brook_Brians_House"
-site_number <-"2.Crystal_Brook_Brians_House"
-site_name <-  "Crystal_Brook_Brians_House"
+# site <-"2.Crystal_Brook_Brians_House"
+# site_number <-"2.Crystal_Brook_Brians_House"
+# site_name <-  "Crystal_Brook_Brians_House"
 
 #site <- "3.Wynarka_Mervs_West"
 #site <- "4.Wharminda"
@@ -32,7 +32,9 @@ site_name <-  "Crystal_Brook_Brians_House"
 # site_number <- "5.Walpeup_Gums"
 # site_name <- "Walpeup_Gums"
 
-#site <- "6.Crystal_Brook_Randals"
+site <- "6.Crystal_Brook_Randals"
+site_number <- "6.Crystal_Brook_Randals"
+site_name <- "Crystal_Brook_Randals"
 
 # ====================== Year ======================
 year_of_analysis <- 2025
