@@ -25,16 +25,17 @@ suppressPackageStartupMessages({
 # site_number <- "3.Wynarka_Mervs_West"
 # site_name <- "Wynarka_Mervs_West"
 
-# site_number <- "4.Wharminda"
-# site_name <- "Wharminda"
+site <- "4.Wharminda"
+site_number <- "4.Wharminda"
+site_name <- "Wharminda"
 
 # site <- "5.Walpeup_Gums"
 # site_number <- "5.Walpeup_Gums"
 # site_name <- "Walpeup_Gums"
 
-site <- "6.Crystal_Brook_Randals"
-site_number <- "6.Crystal_Brook_Randals"
-site_name <- "Crystal_Brook_Randals"
+# site <- "6.Crystal_Brook_Randals"
+# site_number <- "6.Crystal_Brook_Randals"
+# site_name <- "Crystal_Brook_Randals"
 
 # ====================== Year ======================
 year_of_analysis <- 2025
@@ -81,7 +82,7 @@ grid_code_details <- c(
   "1.Walpeup_MRS125"              = "gridcode",
   "2.Crystal_Brook_Brians_House"  = "cluster",
   "3.Wynarka_Mervs_West"          = "xx",
-  "4.Wharminda"                   = "xx",
+  "4.Wharminda"                   = "fcl_mdl",
   "5.Walpeup_Gums"                = "cluster3",
   "6.Crystal_Brook_Randals"       = "cluster"
 )

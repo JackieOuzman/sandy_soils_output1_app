@@ -26,15 +26,18 @@ suppressPackageStartupMessages({
 # site_name <-  "Crystal_Brook_Brians_House"
 
 #site <- "3.Wynarka_Mervs_West"
-#site <- "4.Wharminda"
+
+site <- "4.Wharminda"
+site_number <- "4.Wharminda"
+site_name <- "Wharminda"
 
 # site <- "5.Walpeup_Gums"
 # site_number <- "5.Walpeup_Gums"
 # site_name <- "Walpeup_Gums"
 
-site <- "6.Crystal_Brook_Randals"
-site_number <- "6.Crystal_Brook_Randals"
-site_name <- "Crystal_Brook_Randals"
+# site <- "6.Crystal_Brook_Randals"
+# site_number <- "6.Crystal_Brook_Randals"
+# site_name <- "Crystal_Brook_Randals"
 
 # ====================== Year ======================
 year_of_analysis <- 2025
@@ -157,6 +160,15 @@ long_df_sen <- left_join(long_df_sen, strip_names_details)
 long_df_cum_sen <- left_join(long_df_cum_sen, strip_names_details)
 long_zone <- left_join(long_zone, strip_names_details)
 
+unique(long_df_sen$`Treatment Name`)
+
+#Clean the training whitespaces
+long_df_sen <- long_df_sen %>%  mutate(treat_desc = trimws(treat_desc),
+         `Treatment Name` = trimws(`Treatment Name`))
+long_df_cum_sen <- long_df_cum_sen %>%  mutate(treat_desc = trimws(treat_desc),
+                                       `Treatment Name` = trimws(`Treatment Name`))
+long_zone <- long_zone %>%  mutate(treat_desc = trimws(treat_desc),
+                                       `Treatment Name` = trimws(`Treatment Name`))
 
 #Plots (use numeric origin for sec.axis to avoid date hiccups)
 
@@ -183,6 +195,7 @@ top_breaks <- as.numeric(seq(
 ))
 
 str(long_df_sen)
+
 
 p_sen <- ggplot(long_df_sen, aes(dap, ratio, color = `Treatment Name`, group = `Treatment Name`)) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 8), se = FALSE, linewidth = 0.8) +
