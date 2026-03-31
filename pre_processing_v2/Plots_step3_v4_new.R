@@ -27,17 +27,17 @@ suppressPackageStartupMessages({
 
 #site <- "3.Wynarka_Mervs_West"
 
-site <- "4.Wharminda"
-site_number <- "4.Wharminda"
-site_name <- "Wharminda"
+# site <- "4.Wharminda"
+# site_number <- "4.Wharminda"
+# site_name <- "Wharminda"
 
 # site <- "5.Walpeup_Gums"
 # site_number <- "5.Walpeup_Gums"
 # site_name <- "Walpeup_Gums"
 
-# site <- "6.Crystal_Brook_Randals"
-# site_number <- "6.Crystal_Brook_Randals"
-# site_name <- "Crystal_Brook_Randals"
+site <- "6.Crystal_Brook_Randals"
+site_number <- "6.Crystal_Brook_Randals"
+site_name <- "Crystal_Brook_Randals"
 
 # ====================== Year ======================
 year_of_analysis <- 2025
@@ -191,7 +191,7 @@ plant_date$`Sowing date` <- lubridate::ymd(plant_date$`Sowing date`)
 top_breaks <- as.numeric(seq(
   plant_date$`Sowing date`,
   plant_date$`Sowing date` + max(long_df_sen$dap, na.rm = TRUE),
-  by = "3 weeks"
+  by = "4 weeks"
 ))
 
 str(long_df_sen)
