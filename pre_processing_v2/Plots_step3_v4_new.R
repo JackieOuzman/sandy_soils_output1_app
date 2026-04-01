@@ -20,24 +20,29 @@ suppressPackageStartupMessages({
 # site <- "1.Walpeup_MRS125"
 # site_number <- "1.Walpeup_MRS125"
 # site_name <- "Walpeup_MRS125"
+# display_name <- "Walpeup MRS"
 
 # site <-"2.Crystal_Brook_Brians_House"
 # site_number <-"2.Crystal_Brook_Brians_House"
 # site_name <-  "Crystal_Brook_Brians_House"
+# display_name <- "Crystal Brook BH"
 
 #site <- "3.Wynarka_Mervs_West"
 
 # site <- "4.Wharminda"
 # site_number <- "4.Wharminda"
 # site_name <- "Wharminda"
+# display_name <- "Wharminda"
 
 # site <- "5.Walpeup_Gums"
 # site_number <- "5.Walpeup_Gums"
 # site_name <- "Walpeup_Gums"
+# display_name <- "Walpeup GUMS"
 
 site <- "6.Crystal_Brook_Randals"
 site_number <- "6.Crystal_Brook_Randals"
 site_name <- "Crystal_Brook_Randals"
+display_name <- "Crystal Brook RAN"
 
 # ====================== Year ======================
 year_of_analysis <- 2025
@@ -210,7 +215,7 @@ p_sen <- ggplot(long_df_sen, aes(dap, ratio, color = `Treatment Name`, group = `
     )
   ) +
   labs(
-    title = paste0("**<span style='font-size:18pt;'>", site,
+    title = paste0("**<span style='font-size:18pt;'>", display_name,
                    "</span>**<br>Sentinel Timeseries (", year_of_analysis, ")"),
     y = paste0("Average ", ratio_type),
     color = "Treatment"
@@ -259,7 +264,7 @@ p_cum_sen <- ggplot(long_df_cum_sen, aes(x = dap, y = cum_ratio, color = treat_d
     )
   ) +
   labs(
-    title = paste0("**<span style='font-size:18pt;'>", site,
+    title = paste0("**<span style='font-size:18pt;'>", display_name,
                    "</span>**<br>Sentinel Cumulative (AUC) — ", year_of_analysis),
     y = paste0("Cumulative ", ratio_type, " (AUC)"),
     color = "Treatment"
@@ -362,7 +367,7 @@ p_zone_wide <- ggplot(long_zone, aes(dap, ratio, color = `Treatment Name`, group
   facet_wrap(~zone_id, labeller = as_labeller(zone_labeller))+
   
   labs(
-    title = paste0("**<span style='font-size:18pt;'>", site,
+    title = paste0("**<span style='font-size:18pt;'>", display_name,
                    "</span>**<br>Sentinel by Zone (", year_of_analysis, ")"),
     y = paste0("Average ", ratio_type )
   ) +
