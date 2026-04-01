@@ -34,12 +34,13 @@ suppressPackageStartupMessages({
 # site_number <-"2.Crystal_Brook_Brians_House"
 # site_name <-  "Crystal_Brook_Brians_House"
 
-# site_number <- "3.Wynarka_Mervs_West"
-# site_name <- "Wynarka_Mervs_West"
+site <- "3.Wynarka_Mervs_West"
+site_number <- "3.Wynarka_Mervs_West"
+site_name <- "Wynarka_Mervs_West"
 
-site <- "4.Wharminda"
-site_number <- "4.Wharminda"
-site_name <- "Wharminda"
+# site <- "4.Wharminda"
+# site_number <- "4.Wharminda"
+# site_name <- "Wharminda"
 
 # site <- "5.Walpeup_Gums"
 # site_number <- "5.Walpeup_Gums"

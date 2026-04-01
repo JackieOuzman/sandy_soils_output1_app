@@ -20,29 +20,44 @@ suppressPackageStartupMessages({
 # site <- "1.Walpeup_MRS125"
 # site_number <- "1.Walpeup_MRS125"
 # site_name <- "Walpeup_MRS125"
-# display_name <- "Walpeup MRS"
+# display_name <- "WAL MRS"
 
 # site <-"2.Crystal_Brook_Brians_House"
 # site_number <-"2.Crystal_Brook_Brians_House"
 # site_name <-  "Crystal_Brook_Brians_House"
-# display_name <- "Crystal Brook BH"
+# display_name <- "CRY BHO "
 
-#site <- "3.Wynarka_Mervs_West"
+site <- "3.Wynarka_Mervs_West"
+site_number <- "3.Wynarka_Mervs_West"
+site_name <- "Wynarka_Mervs_West"
+display_name <- "WYN MER"
+
 
 # site <- "4.Wharminda"
 # site_number <- "4.Wharminda"
 # site_name <- "Wharminda"
-# display_name <- "Wharminda"
+# display_name <- "WHA WOD"
 
 # site <- "5.Walpeup_Gums"
 # site_number <- "5.Walpeup_Gums"
 # site_name <- "Walpeup_Gums"
-# display_name <- "Walpeup GUMS"
+# display_name <- "WAL GUM"
 
-site <- "6.Crystal_Brook_Randals"
-site_number <- "6.Crystal_Brook_Randals"
-site_name <- "Crystal_Brook_Randals"
-display_name <- "Crystal Brook RAN"
+# site <- "6.Crystal_Brook_Randals"
+# site_number <- "6.Crystal_Brook_Randals"
+# site_name <- "Crystal_Brook_Randals"
+# display_name <- "CRY RAN"
+# 
+# ## 2026 sites (new)
+# site <- "7.Wharminda_Bonanza"
+# site_number <- "7.Wharminda_Bonanza"
+# site_name <- "Wharminda_Bonanza"
+# display_name <-"WHA BON" 
+# 
+# site <- "8.Wynarka_Tanks"
+# site_number <- "8.Wynarka_Tanks"
+# site_name <- "Wynarka_Tanks"
+# display_name <-"WYN TAN" 
 
 # ====================== Year ======================
 year_of_analysis <- 2025
@@ -126,7 +141,7 @@ ratio_ZONE <- paste0(saveDir,"/",ratio_type,
 long_df_sen <- read_csv(ratio)
 long_df_cum_sen <- read_csv(ratio_cummulative)
 long_zone <- read_csv(ratio_ZONE)
-
+#unique(long_zone$zone_id)
 
 # ====================== HELPERS FOR PLOTS ======================
 
@@ -166,6 +181,7 @@ long_df_cum_sen <- left_join(long_df_cum_sen, strip_names_details)
 long_zone <- left_join(long_zone, strip_names_details)
 
 unique(long_df_sen$`Treatment Name`)
+unique(long_zone$zone_id)
 
 #Clean the training whitespaces
 long_df_sen <- long_df_sen %>%  mutate(treat_desc = trimws(treat_desc),
@@ -365,6 +381,7 @@ p_zone_wide <- ggplot(long_zone, aes(dap, ratio, color = `Treatment Name`, group
     # )
   ) +
   facet_wrap(~zone_id, labeller = as_labeller(zone_labeller))+
+  #facet_wrap(~zone_id)+ #use this for Mervs
   
   labs(
     title = paste0("**<span style='font-size:18pt;'>", display_name,
