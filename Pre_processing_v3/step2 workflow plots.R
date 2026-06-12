@@ -43,24 +43,27 @@ suppressPackageStartupMessages({
 })
 
 # =============================================================================
-# USER INPUT — change site number only
+# USER INPUT — change site number and year  only
 # =============================================================================
+year_of_analysis <- 2026
 
-site_number_input <- 1   # 1 through 6
+site_number_input <- 3  # 1 through 8
 
 # =============================================================================
 # SITE LOOKUP TABLE
 # =============================================================================
 
 site_lookup <- data.frame(
-  id = 1:6,
+  id = 1:8,
   site_number = c(
     "1.Walpeup_MRS125",
     "2.Crystal_Brook_Brians_House",
     "3.Wynarka_Mervs_West",
     "4.Wharminda_Woodys",
     "5.Walpeup_Gums",
-    "6.Crystal_Brook_Randals"
+    "6.Crystal_Brook_Randals",
+    "7.Wharminda_Bonanza",
+    "8.Wynarka_Tanks"
   ),
   site_name = c(
     "Walpeup_MRS125",
@@ -68,7 +71,9 @@ site_lookup <- data.frame(
     "Wynarka_Mervs_West",
     "Wharminda_Woodys",
     "Walpeup_Gums",
-    "Crystal_Brook_Randals"
+    "Crystal_Brook_Randals",
+    "Wharminda_Bonanza",
+    "Wynarka_Tanks"
   ),
   stringsAsFactors = FALSE
 )
@@ -82,7 +87,7 @@ cat("Site selected:", site_number, "\n")
 # PATHS
 # =============================================================================
 
-year_of_analysis <- 2025
+
 yr_short         <- substr(as.character(year_of_analysis), 3, 4)
 
 dir           <- "//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}"
@@ -201,6 +206,20 @@ dat_zone <- dat_zone %>%
   ungroup()
 
 # =============================================================================
+# ADAPTIVE LOESS SPAN — scales with number of image dates available
+# =============================================================================
+
+n_images   <- n_distinct(dat_treat$date)
+loess_span <- dplyr::case_when(
+  n_images <= 8  ~ 0.75,
+  n_images <= 12 ~ 0.50,
+  TRUE           ~ 0.25
+)
+cat("Image dates available:", n_images, "| loess span set to:", loess_span, "\n")
+
+
+
+# =============================================================================
 # SHARED THEME
 # =============================================================================
 
@@ -270,7 +289,7 @@ p1a <- ggplot(dat_treat,
                   group    = treat_desc,
                   linewidth = treat_desc,
                   linetype  = treat_desc)) +
-  geom_smooth(method = "loess", span = 0.25, se = FALSE) +
+  geom_smooth(method = "loess", span = loess_span, se = FALSE) +
   geom_vline(
     data        = dap_date_lookup,
     aes(xintercept = DAP),
@@ -356,7 +375,7 @@ p1b <- ggplot(dat_zone,
                   group     = treat_desc,
                   linewidth = treat_desc,
                   linetype  = treat_desc)) +
-  geom_smooth(method = "loess", span = 0.25, se = FALSE) +
+  geom_smooth(method = "loess", span = loess_span, se = FALSE) +
   geom_vline(
     data        = dap_date_lookup_z,
     aes(xintercept = DAP),
