@@ -7,43 +7,11 @@
 #     - Site and year dropdowns
 #     - Leaflet map with Google satellite imagery, paddock boundary,
 #       and treatment strips
-#     - Toggle between Google satellite and zone basemap
-#       using hex colours from metadata
+#     - Toggle between Google satellite, zone basemap, and NDVI raster
 #
 # Author:  Jackie Ouzman, CSIRO Agriculture & Food
 # Project: af-sandysoils-ii
 # Created: June 2026
-
-# =============================================================================
-# 1. LIBRARIES
-# =============================================================================
-
-# =============================================================================
-# 2. DATA — path, metadata, lookups
-# =============================================================================
-
-# =============================================================================
-# 3. HELPER FUNCTIONS — load_shapefiles etc (if any)
-# =============================================================================
-
-# =============================================================================
-# 4. UI
-#    4a. Controls row (site, year, basemap, NDVI date)
-#    4b. Map panel
-#    4c. Growth curves panel
-# =============================================================================
-
-# =============================================================================
-# 5. SERVER
-#    5a. Dropdowns
-#    5b. Shapefiles reactive
-#    5c. Map observe
-#    5d. Growth curve plot
-# =============================================================================
-
-# =============================================================================
-# 6. RUN
-# =============================================================================
 # =============================================================================
 
 library(shiny)
@@ -103,13 +71,47 @@ zone_label_lookup <- site_metadata %>%
   distinct()
 
 # =============================================================================
+# NDVI COLOUR PALETTE
+# =============================================================================
+# A perceptually sensible NDVI ramp:
+#   deep red (bare/negative) → tan (sparse) → yellow-green (moderate) →
+#   mid green → dark green (dense canopy)
+
+ndvi_colours <- c(
+  "#8B0000",   # deep red      — bare soil / negative NDVI
+  "#CC4400",   # burnt orange  — very sparse
+  "#E8A020",   # amber         — sparse / senescent
+  "#F5E642",   # yellow        — moderate greenness
+  "#A8CC30",   # yellow-green  — developing canopy
+  "#4DB84A",   # mid green     — good canopy
+  "#1A7A1A",   # dark green    — dense canopy
+  "#004400"    # very dark     — maximum greenness
+)
+
+ndvi_domain <- c(-0.2, 0.8)
+
+# =============================================================================
 # UI
 # =============================================================================
 
 ui <- fluidPage(
   
-  # --- Title ---
-  titlePanel("Sandy Soils Trial Sites — NDVI Viewer"),
+  # --- Title bar with CSIRO logo ---
+  fluidRow(
+    column(
+      width = 12,
+      style = "display: flex; align-items: center; gap: 16px; padding: 12px 15px 4px;",
+      tags$img(
+        src    = "https://www.csiro.au/~/media/Web-team/Images/CSIRO_Logo/CSIRO_Logo.svg",
+        height = "48px",
+        alt    = "CSIRO logo"
+      ),
+      tags$h3(
+        "Sandy Soils Trial Sites — NDVI Viewer",
+        style = "margin: 0; font-weight: 600;"
+      )
+    )
+  ),
   
   hr(),
   
@@ -138,13 +140,13 @@ ui <- fluidPage(
                      "NDVI"             = "ndvi"),
         selected = "google"
       )
-    )
-  ),
-  column(
-    width = 3,
-    conditionalPanel(
-      condition = "input.basemap == 'ndvi'",
-      uiOutput("ndvi_date_ui")
+    ),
+    column(
+      width = 3,
+      conditionalPanel(
+        condition = "input.basemap == 'ndvi'",
+        uiOutput("ndvi_date_ui")
+      )
     )
   ),
   
@@ -166,53 +168,51 @@ ui <- fluidPage(
       width = 12,
       leafletOutput("map", height = "600px")
     )
+  ),
   
-),
-
-hr(),
-
-
-# --- Growth curves heading ---
-fluidRow(
-  column(
-    width = 12,
-    h3("Growth Curves")
-  )
-),
-
-fluidRow(
-  column(
-    width = 3,
-    radioButtons(
-      inputId  = "growth_curve_type",
-      label    = "Display by",
-      choices  = c("Treatment only"       = "treatment",
-                   "Treatment with zones" = "zone"),   # <-- "zone" not "zones"
-      selected = "treatment"
+  hr(),
+  
+  # --- Growth curves heading ---
+  fluidRow(
+    column(
+      width = 12,
+      h3("Growth Curves")
     )
   ),
-  column(
-    width = 3,
-    radioButtons(
-      inputId  = "plot_type",
-      label    = "Plot type",
-      choices  = c("Growth curve"    = "growth_curve",
-                   "AUC"             = "AUC",
-                   "Cumulative NDVI" = "cumulative_ndvi"),
-      selected = "growth_curve"
+  
+  fluidRow(
+    column(
+      width = 3,
+      radioButtons(
+        inputId  = "growth_curve_type",
+        label    = "Display by",
+        choices  = c("Treatment only"       = "treatment",
+                     "Treatment with zones" = "zone"),
+        selected = "treatment"
+      )
+    ),
+    column(
+      width = 3,
+      radioButtons(
+        inputId  = "plot_type",
+        label    = "Plot type",
+        choices  = c("Growth curve"    = "growth_curve",    # ← AUC moved to last
+                     "Cumulative NDVI" = "cumulative_ndvi",
+                     "AUC"             = "AUC"),
+        selected = "growth_curve"
+      )
+    )
+  ),
+  
+  fluidRow(
+    column(
+      width = 12,
+      uiOutput("growth_curve_image")
     )
   )
-),
+  
+)   # closing fluidPage
 
-fluidRow(
-  column(
-    width = 12,
-    uiOutput("growth_curve_image")
-  )
-)
-
-
-)   # <-- closing fluidPage
 # =============================================================================
 # SERVER
 # =============================================================================
@@ -238,15 +238,11 @@ server <- function(input, output, session) {
   })
   
   # --- NDVI date dropdown ---
-  # Reads available dates from the NDVI stack TIF filename pattern
   output$ndvi_date_ui <- renderUI({
     req(input$site, input$year, input$basemap == "ndvi")
     
     yr_dir   <- file.path(data_dir, input$site, as.character(input$year))
     tif_file <- file.path(yr_dir, paste0(input$site, "_NDVI_stack.tif"))
-    
-    cat("Looking for TIF at:", tif_file, "\n")   # debug line — check console
-    cat("File exists:", file.exists(tif_file), "\n")
     
     if (!file.exists(tif_file)) {
       return(helpText("No NDVI image available for this site and year."))
@@ -255,8 +251,6 @@ server <- function(input, output, session) {
     r     <- terra::rast(tif_file)
     dates <- names(r)
     
-    cat("Dates found:", length(dates), "\n")   # debug line
-    
     selectInput(
       inputId  = "ndvi_date",
       label    = "NDVI image date",
@@ -264,7 +258,6 @@ server <- function(input, output, session) {
       selected = dates[length(dates)]
     )
   })
-  
   
   # --- Load shapefiles reactively when site changes ---
   shp <- reactive({
@@ -318,10 +311,7 @@ server <- function(input, output, session) {
       distinct()
   })
   
-  # ==========================================================================
-  # 5c. Season info bar
-  # ==========================================================================
-  
+  # --- Season info bar ---
   output$season_info <- renderUI({
     req(input$site, input$year)
     
@@ -425,7 +415,6 @@ server <- function(input, output, session) {
         mutate(zone = as.character(.data[[zf]])) %>%
         left_join(zlabels, by = "zone")
       
-      # Use hex colours from metadata
       zone_pal <- colorFactor(
         palette = zlabels$zone_hex,
         levels  = zlabels$zone
@@ -461,15 +450,14 @@ server <- function(input, output, session) {
         
         r <- terra::rast(tif_file)
         
-        # Guard: only proceed if the selected date exists in this stack
         if (input$ndvi_date %in% names(r)) {
           
           r_layer <- r[[input$ndvi_date]]
           r_wgs84 <- terra::project(r_layer, "EPSG:4326")
           
           ndvi_pal <- colorNumeric(
-            palette  = c("#8B4513", "#F5DEB3", "#FFFF00", "#90EE90", "#006400"),
-            domain   = c(-0.2, 0.8),
+            palette  = ndvi_colours,
+            domain   = ndvi_domain,
             na.color = "transparent"
           )
           
@@ -477,13 +465,13 @@ server <- function(input, output, session) {
             addRasterImage(
               x       = raster::raster(r_wgs84),
               colors  = ndvi_pal,
-              opacity = 0.8,
+              opacity = 0.85,
               group   = "NDVI"
             ) %>%
             addLegend(
               position = "bottomleft",
               pal      = ndvi_pal,
-              values   = c(-0.2, 0.8),
+              values   = ndvi_domain,
               title    = paste0("NDVI<br>", input$ndvi_date),
               opacity  = 0.8
             )
@@ -517,9 +505,8 @@ server <- function(input, output, session) {
         levels  = colours$treat_desc
       )
       
-      # When NDVI is showing, strips are outline only with black border for visibility
-      fill_opacity   <- ifelse(input$basemap == "ndvi", 0,     0.4)
-      strip_colour   <- ifelse(input$basemap == "ndvi", "black", "white")
+      fill_opacity <- ifelse(input$basemap == "ndvi", 0,     0.4)
+      strip_colour <- ifelse(input$basemap == "ndvi", "black", "white")
       
       proxy <- proxy %>%
         addPolygons(
@@ -541,14 +528,10 @@ server <- function(input, output, session) {
     }
   })
   
-  # ==========================================================================
-  # 5d. Growth curve image display
-  # ==========================================================================
-  
+  # --- Growth curve image display ---
   output$growth_curve_image <- renderUI({
     req(input$site, input$year, input$growth_curve_type, input$plot_type)
     
-    # build the filename from the three selections
     png_name <- paste0(input$site, "_",
                        input$plot_type, "_",
                        input$growth_curve_type, ".png")
@@ -556,13 +539,10 @@ server <- function(input, output, session) {
     png_path <- file.path(data_dir, input$site,
                           as.character(input$year), png_name)
     
-    cat("Looking for PNG:", png_path, "\n")
-    
     if (!file.exists(png_path)) {
       return(helpText(paste0("No plot available for this selection: ", png_name)))
     }
     
-    # copy to www/ folder so Shiny can serve it
     www_dir <- file.path(getwd(), "www")
     dir.create(www_dir, showWarnings = FALSE)
     file.copy(png_path, file.path(www_dir, "current_plot.png"), overwrite = TRUE)
@@ -573,7 +553,7 @@ server <- function(input, output, session) {
     )
   })
   
-} # <-- closing for server?
+}  # closing server
 
 # =============================================================================
 # RUN
