@@ -32,9 +32,10 @@
 #   shiny_app_data/
 #   ├── site_metadata.csv
 #   └── <site_name>/
-#       ├── <site_name>_NDVI_treatment_only_DAP.csv
-#       ├── <site_name>_NDVI_treatment_zone_DAP.csv
-#       ├── <site_name>_NDVI_stack.tif           (if present)
+#       ├── <year>/
+#       │   ├── <site_name>_NDVI_treatment_only_DAP.csv
+#       │   ├── <site_name>_NDVI_treatment_zone_DAP.csv
+#       │   └── <site_name>_NDVI_stack.tif     (if present)
 #       └── shapefiles/
 #           ├── boundary/    (.shp .dbf .prj .shx .cpg if present)
 #           ├── trial_plan/
@@ -67,22 +68,21 @@ suppressPackageStartupMessages({
 })
 
 # --- Root paths (same as Scripts 1 and 2) ---
-proj_dir <- "//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}"
+proj_dir      <- "//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}"
 metadata_path <- file.path(proj_dir, "work", "Output-1", "0.Site-info")
 metadata_file <- "names of treatments per site 2025 metadata and other info.xlsx"
 
 # --- Where to write the packaged output ---
-
 output_root <- file.path(proj_dir, "work", "Output-1", "shiny_app_data")
 cat("Output will be written to:\n ", output_root, "\n")
 
 
-
 # =============================================================================
-# CHUNK 2: Site lookup table with years
+# CHUNK 2: Site lookup table with years and zone fields
 # =============================================================================
 # years column controls which season folders are packaged per site.
-# Add 2027 etc here when the time comes.
+# zone_field records the attribute field name used in each site's zone shapefile.
+# Add 2027 etc to years when the time comes.
 # =============================================================================
 
 site_lookup <- data.frame(
@@ -107,6 +107,16 @@ site_lookup <- data.frame(
     "Wharminda_Bonanza",
     "Wynarka_Tanks"
   ),
+  zone_field = c(
+    "gridcode",   # 1. Walpeup_MRS125
+    "cluster",    # 2. Crystal_Brook_Brians_House
+    "fcl_mdl",    # 3. Wynarka_Mervs_West
+    "fcl_mdl",    # 4. Wharminda_Woodys
+    "cluster3",   # 5. Walpeup_Gums
+    "cluster",    # 6. Crystal_Brook_Randals
+    "DN",         # 7. Wharminda_Bonanza
+    "zone"        # 8. Wynarka_Tanks
+  ),
   years = I(list(
     c(2025, 2026),   # 1. Walpeup_MRS125
     c(2025, 2026),   # 2. Crystal_Brook_Brians_House
@@ -123,12 +133,23 @@ site_lookup <- data.frame(
 cat("Sites and years to package:\n")
 for (i in seq_len(nrow(site_lookup))) {
   cat(" ", site_lookup$site_name[i], "—",
-      paste(site_lookup$years[[i]], collapse = ", "), "\n")
+      paste(site_lookup$years[[i]], collapse = ", "),
+      "| zone field:", site_lookup$zone_field[i], "\n")
 }
+
 
 # =============================================================================
 # CHUNK 3: Export site_metadata.csv from the Excel file
 # =============================================================================
+# Reads four sources and joins them into one flat file the Shiny app can use
+# instead of needing direct access to the Excel on the network drive.
+# zone_field is carried through from site_lookup so the app knows which
+# shapefile attribute to use when rendering the zone basemap.
+# =============================================================================
+
+
+
+cat("\n--- Reading metadata Excel ---\n")
 
 # Sheet 1: treatment names and colours
 treat_meta <- readxl::read_excel(
@@ -140,24 +161,33 @@ treat_meta <- readxl::read_excel(
 
 cat("Treatment metadata rows:", nrow(treat_meta), "\n")
 
-# Sheet 2: zone labels
+# Sheet 2: zone details — now includes hex colour and label
 zone_meta <- readxl::read_excel(
   file.path(metadata_path, metadata_file),
   sheet = "zone_details"
 ) %>%
-  dplyr::select(Site, zone = `zone names`, zone_label = `zone label names`) %>%
+  dplyr::select(
+    Site,
+    zone       = `zone names`,
+    zone_label = `zone label names`,
+    zone_hex   = `Hex Code`
+  ) %>%
   mutate(zone = as.character(zone)) %>%
   distinct()
 
 cat("Zone metadata rows:", nrow(zone_meta), "\n")
 
-# Sheet 3: sowing dates — keep all years present across all sites
+# Sheet 3: sowing dates — now includes crop and variety
 season_meta <- readxl::read_excel(
   file.path(metadata_path, metadata_file),
   sheet = "seasons"
 ) %>%
   filter(Year %in% unlist(site_lookup$years)) %>%
-  dplyr::select(Site, Year, sowing_date = `Sowing date`) %>%
+  dplyr::select(Site, Year,
+                crop    = Crop,
+                variety = Variety,
+                sowing_date  = `Sowing date`,
+                harvest_date = `Harvest date`) %>%
   mutate(
     sowing_date = case_when(
       inherits(sowing_date, "Date")    ~ as.Date(sowing_date),
@@ -168,29 +198,49 @@ season_meta <- readxl::read_excel(
         orders = c("dmy", "ymd", "mdy"),
         quiet  = TRUE
       ))
+    ),
+    harvest_date = case_when(
+      inherits(harvest_date, "Date")    ~ as.Date(harvest_date),
+      inherits(harvest_date, "POSIXct") ~ as.Date(harvest_date),
+      is.numeric(harvest_date)          ~ as.Date(harvest_date, origin = "1899-12-30"),
+      TRUE ~ as.Date(lubridate::parse_date_time(
+        trimws(as.character(harvest_date)),
+        orders = c("dmy", "ymd", "mdy"),
+        quiet  = TRUE
+      ))
     )
   )
 
 cat("Season metadata rows:", nrow(season_meta), "\n")
 
-# Join all three — one row per site x treat x zone x year
+# Join all together — one row per site x treat x zone x year
 site_metadata <- treat_meta %>%
   left_join(zone_meta,   by = "Site") %>%
   left_join(season_meta, by = "Site") %>%
-  left_join(site_lookup %>% dplyr::select(site_number, site_name),
-            by = c("Site" = "site_number")) %>%
-  dplyr::select(site_name, Site, Year, treat, treat_desc, hex,
-                zone, zone_label, sowing_date) %>%
+  left_join(
+    site_lookup %>% dplyr::select(site_number, site_name, zone_field),
+    by = c("Site" = "site_number")
+  ) %>%
+  dplyr::select(site_name, Site, Year, crop, variety,
+                treat, treat_desc, hex,
+                zone, zone_label, zone_hex, zone_field,
+                sowing_date, harvest_date) %>%
   arrange(site_name, Year, treat, zone)
 
 cat("Combined metadata rows:", nrow(site_metadata), "\n")
 cat("Sites represented:", n_distinct(site_metadata$site_name), "\n")
 
-# Quick sense check — print one row per site x year so you can verify sowing dates
-cat("\nSowing dates by site and year:\n")
+# Sense check
+cat("\nSowing dates, crop and variety by site and year:\n")
 site_metadata %>%
-  distinct(site_name, Year, sowing_date) %>%
+  distinct(site_name, Year, crop, variety, sowing_date, harvest_date) %>%
   arrange(site_name, Year) %>%
+  print(n = Inf)
+
+cat("\nZone colours by site:\n")
+site_metadata %>%
+  distinct(site_name, zone, zone_label, zone_hex) %>%
+  arrange(site_name, zone) %>%
   print(n = Inf)
 
 # Write to staging folder
@@ -199,8 +249,6 @@ dir.create(output_root, recursive = TRUE, showWarnings = FALSE)
 metadata_out <- file.path(output_root, "site_metadata.csv")
 write.csv(site_metadata, metadata_out, row.names = FALSE)
 cat("\nSaved:", metadata_out, "\n")
-
-
 
 # =============================================================================
 # CHUNK 4: Read shapefile paths from metadata Excel
@@ -233,8 +281,6 @@ cat("\nSample paths for site 1 (", site_lookup$site_number[1], "):\n")
 cat("  boundary_shapefile  :", get_shp_path(site_lookup$site_number[1], "boundary_shapefile"), "\n")
 cat("  trial.plan          :", get_shp_path(site_lookup$site_number[1], "trial.plan"), "\n")
 cat("  location of zone shp:", get_shp_path(site_lookup$site_number[1], "location of zone shp"), "\n")
-
-
 
 
 # =============================================================================
@@ -374,3 +420,48 @@ for (i in seq_len(nrow(site_lookup))) {
   }
   
 }  # end site loop
+
+
+# =============================================================================
+# CHUNK 6: Summary checklist
+# =============================================================================
+# Prints a final pass/fail table across all sites and years so you can see
+# at a glance whether anything needs attention before transferring.
+# =============================================================================
+
+cat("\n=== PACKAGING SUMMARY ===\n\n")
+
+all_log <- dplyr::bind_rows(copy_log)
+
+required_log <- all_log %>%
+  filter(!grepl("optional", status))
+
+n_ok      <- sum(required_log$status == "copied")
+n_missing <- sum(grepl("MISSING", required_log$status))
+
+print(required_log %>% dplyr::select(site, year, type, file, status), n = Inf)
+
+cat("\nRequired items copied: ", n_ok, "\n")
+cat("Required items missing:", n_missing, "\n")
+
+if (n_missing == 0) {
+  cat("\nAll required files present. shiny_app_data/ is ready to transfer.\n")
+} else {
+  cat("\nWARNING: Missing files above — re-run Script 1 for affected sites\n",
+      "or check shapefile paths in the metadata Excel before transferring.\n")
+}
+
+cat("\nFolder size summary:\n")
+for (snm in site_lookup$site_name) {
+  site_dir <- file.path(output_root, snm)
+  if (dir.exists(site_dir)) {
+    n_files <- length(list.files(site_dir, recursive = TRUE))
+    cat(" ", snm, "—", n_files, "files\n")
+  }
+}
+
+cat("\nTransfer command (edit server path to suit):\n")
+cat("  rsync -av", output_root,
+    "<your-username>@shiny.csiro.au:/srv/shiny-server/sandysoils/data/\n")
+
+cat("\n=== Script 4 complete ===\n")
