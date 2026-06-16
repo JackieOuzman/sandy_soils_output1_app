@@ -137,7 +137,8 @@ ui <- fluidPage(
         label    = "Base map",
         choices  = c("Google satellite" = "google",
                      "Zone map"         = "zones",
-                     "NDVI"             = "ndvi"),
+                     "NDVI"             = "ndvi",
+                     "None"             = "none"),
         selected = "google"
       )
     ),
@@ -389,6 +390,11 @@ server <- function(input, output, session) {
           provider = providers$Esri.WorldImagery,
           options  = providerTileOptions(maxZoom = 20)
         )
+    } else if (input$basemap == "none") {
+      proxy <- proxy %>%
+        addProviderTiles(
+          provider = providers$CartoDB.PositronNoLabels
+        )
     } else {
       proxy <- proxy %>%
         addProviderTiles(
@@ -505,8 +511,8 @@ server <- function(input, output, session) {
         levels  = colours$treat_desc
       )
       
-      fill_opacity <- ifelse(input$basemap == "ndvi", 0,     0.4)
-      strip_colour <- ifelse(input$basemap == "ndvi", "black", "white")
+      fill_opacity <- ifelse(input$basemap %in% c("ndvi", "zones"), 0, 0.4)
+      strip_colour <- ifelse(input$basemap %in% c("ndvi", "zones"), "black", "white")
       
       proxy <- proxy %>%
         addPolygons(
