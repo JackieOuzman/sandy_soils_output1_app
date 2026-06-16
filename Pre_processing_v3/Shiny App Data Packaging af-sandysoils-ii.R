@@ -283,11 +283,11 @@ cat("  trial.plan          :", get_shp_path(site_lookup$site_number[1], "trial.p
 cat("  location of zone shp:", get_shp_path(site_lookup$site_number[1], "location of zone shp"), "\n")
 
 
-# =============================================================================
-# CHUNK 5: Copy CSV, TIF and shapefile files for all sites
+## =============================================================================
+# CHUNK 5: Copy CSV, TIF, PNG and shapefile files for all sites
 # =============================================================================
 # For each site loops over its years (from site_lookup) and copies:
-#   - CSVs and TIF into shiny_app_data/<site_name>/<year>/
+#   - CSVs, TIF and pre-rendered PNGs into shiny_app_data/<site_name>/<year>/
 # Then copies shapefiles once per site (they don't change between seasons) into
 #   - shiny_app_data/<site_name>/shapefiles/boundary|trial_plan|zones/
 # =============================================================================
@@ -315,11 +315,9 @@ copy_shapefile <- function(src_shp_path, dest_folder) {
                 overwrite = TRUE)
       n_copied <- n_copied + 1
     } else if (ext %in% c(".shp", ".dbf", ".shx")) {
-      # These three are the minimum required for a valid shapefile
       n_missing <- n_missing + 1
       cat("      [MISSING]", basename(src_file), "\n")
     }
-    # .prj and .cpg are optional — silently skip if absent
   }
   
   if (n_missing > 0) {
@@ -346,7 +344,7 @@ for (i in seq_len(nrow(site_lookup))) {
   
   cat("\n[Site", i, "]", snm, "\n")
   
-  # --- CSVs and TIF: loop over years ---
+  # --- CSVs, TIF and PNGs: loop over years ---
   for (yr in years) {
     
     yr_short <- substr(as.character(yr), 3, 4)
@@ -363,9 +361,21 @@ for (i in seq_len(nrow(site_lookup))) {
     cat("  Year:", yr, "\n")
     
     csv_tif_files <- list(
+      
+      # --- CSVs (required) ---
       list(name = paste0(snm, "_NDVI_treatment_only_DAP.csv"), required = TRUE),
       list(name = paste0(snm, "_NDVI_treatment_zone_DAP.csv"), required = TRUE),
-      list(name = paste0(snm, "_NDVI_stack.tif"),              required = FALSE)
+      
+      # --- TIF (optional) ---
+      list(name = paste0(snm, "_NDVI_stack.tif"),              required = FALSE),
+      
+      # --- Pre-rendered PNGs (optional) ---
+      list(name = paste0(snm, "_growth_curve_treatment.png"),    required = FALSE),
+      list(name = paste0(snm, "_growth_curve_zone.png"),         required = FALSE),
+      list(name = paste0(snm, "_AUC_treatment.png"),             required = FALSE),
+      list(name = paste0(snm, "_AUC_zone.png"),                  required = FALSE),
+      list(name = paste0(snm, "_cumulative_ndvi_treatment.png"), required = FALSE),
+      list(name = paste0(snm, "_cumulative_ndvi_zone.png"),      required = FALSE)
     )
     
     for (f in csv_tif_files) {
@@ -420,6 +430,8 @@ for (i in seq_len(nrow(site_lookup))) {
   }
   
 }  # end site loop
+
+
 
 
 # =============================================================================
