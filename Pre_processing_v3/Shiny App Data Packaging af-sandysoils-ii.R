@@ -147,7 +147,9 @@ for (i in seq_len(nrow(site_lookup))) {
 # shapefile attribute to use when rendering the zone basemap.
 # =============================================================================
 
-
+# =============================================================================
+# CHUNK 3: Export site_metadata.csv from the Excel file
+# =============================================================================
 
 cat("\n--- Reading metadata Excel ---\n")
 
@@ -161,7 +163,7 @@ treat_meta <- readxl::read_excel(
 
 cat("Treatment metadata rows:", nrow(treat_meta), "\n")
 
-# Sheet 2: zone details — now includes hex colour and label
+# Sheet 2: zone details
 zone_meta <- readxl::read_excel(
   file.path(metadata_path, metadata_file),
   sheet = "zone_details"
@@ -177,17 +179,18 @@ zone_meta <- readxl::read_excel(
 
 cat("Zone metadata rows:", nrow(zone_meta), "\n")
 
-# Sheet 3: sowing dates — now includes crop and variety
+# Sheet 3: sowing dates — now includes crop, variety, harvest date and comment
 season_meta <- readxl::read_excel(
   file.path(metadata_path, metadata_file),
   sheet = "seasons"
 ) %>%
   filter(Year %in% unlist(site_lookup$years)) %>%
   dplyr::select(Site, Year,
-                crop    = Crop,
-                variety = Variety,
+                crop         = Crop,
+                variety      = Variety,
                 sowing_date  = `Sowing date`,
-                harvest_date = `Harvest date`) %>%
+                harvest_date = `Harvest date`,
+                season_note  = Comment) %>%
   mutate(
     sowing_date = case_when(
       inherits(sowing_date, "Date")    ~ as.Date(sowing_date),
@@ -213,7 +216,7 @@ season_meta <- readxl::read_excel(
 
 cat("Season metadata rows:", nrow(season_meta), "\n")
 
-# Join all together — one row per site x treat x zone x year
+# Join all together including zone_field and season_note
 site_metadata <- treat_meta %>%
   left_join(zone_meta,   by = "Site") %>%
   left_join(season_meta, by = "Site") %>%
@@ -224,7 +227,7 @@ site_metadata <- treat_meta %>%
   dplyr::select(site_name, Site, Year, crop, variety,
                 treat, treat_desc, hex,
                 zone, zone_label, zone_hex, zone_field,
-                sowing_date, harvest_date) %>%
+                sowing_date, harvest_date, season_note) %>%
   arrange(site_name, Year, treat, zone)
 
 cat("Combined metadata rows:", nrow(site_metadata), "\n")
@@ -233,14 +236,9 @@ cat("Sites represented:", n_distinct(site_metadata$site_name), "\n")
 # Sense check
 cat("\nSowing dates, crop and variety by site and year:\n")
 site_metadata %>%
-  distinct(site_name, Year, crop, variety, sowing_date, harvest_date) %>%
+  distinct(site_name, Year, crop, variety, sowing_date,
+           harvest_date, season_note) %>%
   arrange(site_name, Year) %>%
-  print(n = Inf)
-
-cat("\nZone colours by site:\n")
-site_metadata %>%
-  distinct(site_name, zone, zone_label, zone_hex) %>%
-  arrange(site_name, zone) %>%
   print(n = Inf)
 
 # Write to staging folder
@@ -249,6 +247,8 @@ dir.create(output_root, recursive = TRUE, showWarnings = FALSE)
 metadata_out <- file.path(output_root, "site_metadata.csv")
 write.csv(site_metadata, metadata_out, row.names = FALSE)
 cat("\nSaved:", metadata_out, "\n")
+
+
 
 # =============================================================================
 # CHUNK 4: Read shapefile paths from metadata Excel

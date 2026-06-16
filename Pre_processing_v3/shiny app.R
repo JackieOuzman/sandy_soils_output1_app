@@ -13,6 +13,37 @@
 # Author:  Jackie Ouzman, CSIRO Agriculture & Food
 # Project: af-sandysoils-ii
 # Created: June 2026
+
+# =============================================================================
+# 1. LIBRARIES
+# =============================================================================
+
+# =============================================================================
+# 2. DATA — path, metadata, lookups
+# =============================================================================
+
+# =============================================================================
+# 3. HELPER FUNCTIONS — load_shapefiles etc (if any)
+# =============================================================================
+
+# =============================================================================
+# 4. UI
+#    4a. Controls row (site, year, basemap, NDVI date)
+#    4b. Map panel
+#    4c. Growth curves panel
+# =============================================================================
+
+# =============================================================================
+# 5. SERVER
+#    5a. Dropdowns
+#    5b. Shapefiles reactive
+#    5c. Map observe
+#    5d. Growth curve plot
+# =============================================================================
+
+# =============================================================================
+# 6. RUN
+# =============================================================================
 # =============================================================================
 
 library(shiny)
@@ -119,12 +150,11 @@ ui <- fluidPage(
   
   hr(),
   
-  # --- Help text ---
+  # --- Season info bar ---
   fluidRow(
     column(
       width = 12,
-      helpText("Map shows paddock boundary and treatment strips.",
-               "Treatment colours match growth curve plots.")
+      uiOutput("season_info")
     )
   ),
   
@@ -136,9 +166,53 @@ ui <- fluidPage(
       width = 12,
       leafletOutput("map", height = "600px")
     )
+  
+),
+
+hr(),
+
+
+# --- Growth curves heading ---
+fluidRow(
+  column(
+    width = 12,
+    h3("Growth Curves")
+  )
+),
+
+fluidRow(
+  column(
+    width = 3,
+    radioButtons(
+      inputId  = "growth_curve_type",
+      label    = "Display by",
+      choices  = c("Treatment only"       = "treatment",
+                   "Treatment with zones" = "zone"),   # <-- "zone" not "zones"
+      selected = "treatment"
+    )
+  ),
+  column(
+    width = 3,
+    radioButtons(
+      inputId  = "plot_type",
+      label    = "Plot type",
+      choices  = c("Growth curve"    = "growth_curve",
+                   "AUC"             = "AUC",
+                   "Cumulative NDVI" = "cumulative_ndvi"),
+      selected = "growth_curve"
+    )
+  )
+),
+
+fluidRow(
+  column(
+    width = 12,
+    uiOutput("growth_curve_image")
   )
 )
 
+
+)   # <-- closing fluidPage
 # =============================================================================
 # SERVER
 # =============================================================================
@@ -242,6 +316,54 @@ server <- function(input, output, session) {
       dplyr::select(zone, zone_label, zone_hex) %>%
       mutate(zone = as.character(zone)) %>%
       distinct()
+  })
+  
+  # ==========================================================================
+  # 5c. Season info bar
+  # ==========================================================================
+  
+  output$season_info <- renderUI({
+    req(input$site, input$year)
+    
+    info <- site_metadata %>%
+      dplyr::filter(site_name == input$site,
+                    Year      == as.integer(input$year)) %>%
+      dplyr::select(Year, crop, variety, sowing_date, harvest_date, season_note) %>%
+      distinct() %>%
+      .[1, ]
+    
+    crop_text <- if (!is.na(info$crop) && info$crop != "") {
+      if (!is.na(info$variety) && info$variety != "")
+        paste0(info$crop, " — ", info$variety)
+      else
+        info$crop
+    } else {
+      "Crop TBC"
+    }
+    
+    sown_text <- if (!is.na(info$sowing_date))
+      paste0("Sown ", format(as.Date(info$sowing_date), "%d %b %Y"))
+    else
+      "Sowing date TBC"
+    
+    harvest_text <- if (!is.na(info$harvest_date))
+      paste0("Harvested ", format(as.Date(info$harvest_date), "%d %b %Y"))
+    else
+      NULL
+    
+    note_text <- if (!is.na(info$season_note) && info$season_note != "")
+      info$season_note
+    else
+      NULL
+    
+    pieces <- c(as.character(info$Year), crop_text,
+                sown_text, harvest_text, note_text)
+    pieces <- pieces[!is.null(pieces)]
+    
+    tags$p(
+      style = "font-size: 15px; color: #444; padding: 4px 0;",
+      paste(pieces, collapse = "  |  ")
+    )
   })
   
   # --- Base map (rendered once, updated via proxy) ---
@@ -418,7 +540,40 @@ server <- function(input, output, session) {
         )
     }
   })
-}
+  
+  # ==========================================================================
+  # 5d. Growth curve image display
+  # ==========================================================================
+  
+  output$growth_curve_image <- renderUI({
+    req(input$site, input$year, input$growth_curve_type, input$plot_type)
+    
+    # build the filename from the three selections
+    png_name <- paste0(input$site, "_",
+                       input$plot_type, "_",
+                       input$growth_curve_type, ".png")
+    
+    png_path <- file.path(data_dir, input$site,
+                          as.character(input$year), png_name)
+    
+    cat("Looking for PNG:", png_path, "\n")
+    
+    if (!file.exists(png_path)) {
+      return(helpText(paste0("No plot available for this selection: ", png_name)))
+    }
+    
+    # copy to www/ folder so Shiny can serve it
+    www_dir <- file.path(getwd(), "www")
+    dir.create(www_dir, showWarnings = FALSE)
+    file.copy(png_path, file.path(www_dir, "current_plot.png"), overwrite = TRUE)
+    
+    tags$img(
+      src   = paste0("current_plot.png?t=", as.numeric(Sys.time())),
+      style = "width:100%; max-width:1000px;"
+    )
+  })
+  
+} # <-- closing for server?
 
 # =============================================================================
 # RUN
