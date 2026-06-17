@@ -17,9 +17,9 @@
 #   - Transfer files to the server (that step is manual — see end of script)
 #
 # Inputs (per site, from existing folder structure):
-#   - <site_name>_NDVI_treatment_only_DAP.csv
-#   - <site_name>_NDVI_treatment_zone_DAP.csv
-#   - <site_name>_NDVI_stack.tif               (optional — skipped if missing)
+#   - <site_name>_NDVI_treatment_only_DAP.csv       (required)
+#   - <site_name>_NDVI_treatment_zone_DAP.csv        (required)
+#   - <site_name>_NDVI_stack.tif                     (optional)
 #   - Shapefiles (paths read from metadata Excel, sheet "file location etc"):
 #       boundary_shapefile
 #       trial.plan
@@ -35,7 +35,15 @@
 #       ├── <year>/
 #       │   ├── <site_name>_NDVI_treatment_only_DAP.csv
 #       │   ├── <site_name>_NDVI_treatment_zone_DAP.csv
-#       │   └── <site_name>_NDVI_stack.tif     (if present)
+#       │   ├── <site_name>_NDVI_stack.tif              (if present)
+#       │   ├── <site_name>_growth_curve_treatment.png
+#       │   ├── <site_name>_growth_curve_zone.png
+#       │   ├── <site_name>_growth_curve_by_treatment.png
+#       │   ├── <site_name>_cumulative_ndvi_treatment.png
+#       │   ├── <site_name>_cumulative_ndvi_zone.png
+#       │   ├── <site_name>_cumulative_ndvi_by_treatment.png
+#       │   ├── <site_name>_AUC_treatment.png
+#       │   └── <site_name>_AUC_zone.png
 #       └── shapefiles/
 #           ├── boundary/    (.shp .dbf .prj .shx .cpg if present)
 #           ├── trial_plan/
@@ -43,7 +51,7 @@
 #
 # Usage:
 #   Run chunk by chunk in RStudio. Each section prints a progress summary.
-#   Re-run Step 4 any time Scripts 1–3 have been updated for any site.
+#   Re-run Script 4 any time Scripts 1–3 have been updated for any site.
 #
 # Transfer to Shiny server (run manually after this script completes):
 #   rsync -av shiny_app_data/ <your-username>@shiny.csiro.au:/srv/shiny-server/sandysoils/data/
@@ -52,6 +60,10 @@
 # Author:  Jackie Ouzman, CSIRO Agriculture & Food
 # Project: af-sandysoils-ii
 # Created: June 2026
+# Modified: June 2026 — added growth_curve_by_treatment.png and
+#                        cumulative_ndvi_by_treatment.png (faceted by
+#                        treatment with Control as reference line)
+# =============================================================================
 # =============================================================================
 
 # =============================================================================
@@ -370,12 +382,14 @@ for (i in seq_len(nrow(site_lookup))) {
       list(name = paste0(snm, "_NDVI_stack.tif"),              required = FALSE),
       
       # --- Pre-rendered PNGs (optional) ---
-      list(name = paste0(snm, "_growth_curve_treatment.png"),    required = FALSE),
-      list(name = paste0(snm, "_growth_curve_zone.png"),         required = FALSE),
-      list(name = paste0(snm, "_AUC_treatment.png"),             required = FALSE),
-      list(name = paste0(snm, "_AUC_zone.png"),                  required = FALSE),
-      list(name = paste0(snm, "_cumulative_ndvi_treatment.png"), required = FALSE),
-      list(name = paste0(snm, "_cumulative_ndvi_zone.png"),      required = FALSE)
+      list(name = paste0(snm, "_growth_curve_treatment.png"),         required = FALSE),
+      list(name = paste0(snm, "_growth_curve_zone.png"),              required = FALSE),
+      list(name = paste0(snm, "_growth_curve_by_treatment.png"),      required = FALSE),  # new
+      list(name = paste0(snm, "_cumulative_ndvi_treatment.png"),      required = FALSE),
+      list(name = paste0(snm, "_cumulative_ndvi_zone.png"),           required = FALSE),
+      list(name = paste0(snm, "_cumulative_ndvi_by_treatment.png"),   required = FALSE),  # new
+      list(name = paste0(snm, "_AUC_treatment.png"),                  required = FALSE),
+      list(name = paste0(snm, "_AUC_zone.png"),                       required = FALSE)
     )
     
     for (f in csv_tif_files) {

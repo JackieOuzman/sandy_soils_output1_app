@@ -63,7 +63,7 @@ suppressPackageStartupMessages({
 # =============================================================================
 year_of_analysis <- 2026
 
-site_number_input <- 3  # 1 through 8
+site_number_input <- 8  # 1 through 8
 
 # =============================================================================
 # SITE LOOKUP TABLE
@@ -303,8 +303,8 @@ zone_shp_reproj <- zone_shp %>%
   rename(zone = all_of(zone_field))
 
 treat_zone <- sf::st_intersection(
-  trial_plan_reproj %>% select(treat, treat_desc),
-  zone_shp_reproj   %>% select(zone)
+  trial_plan_reproj %>% dplyr::select(treat, treat_desc),
+  zone_shp_reproj   %>% dplyr::select(zone)
 ) %>%
   filter(treat != "B")   # drop buffer strips
 
@@ -328,7 +328,7 @@ ndvi_long <- cbind(poly_attrs, extracted[, -1, drop = FALSE]) %>%
     names_to  = "date",
     values_to = "mean_ndvi"
   ) %>%
-  mutate(
+  dplyr::mutate(
     date = as.Date(date),
     DAP  = as.numeric(date - plant_date),
     site = site_name,
@@ -359,7 +359,7 @@ auc_zone <- ndvi_long %>%
 
 ndvi_out <- ndvi_long %>%
   left_join(auc_zone, by = c("site", "treat", "treat_desc", "zone")) %>%
-  select(site, date, DAP, treat, treat_desc, zone, mean_ndvi, AUC)
+  dplyr::select(site, date, DAP, treat, treat_desc, zone, mean_ndvi, AUC)
 
 out_file <- file.path(saveDir, paste0(site_name, "_NDVI_treatment_zone_DAP.csv"))
 write.csv(ndvi_out, file = out_file, row.names = FALSE)
@@ -393,7 +393,7 @@ ndvi_treat_long <- cbind(
     names_to  = "date",
     values_to = "mean_ndvi"
   ) %>%
-  mutate(
+  dplyr::mutate(
     date = as.Date(date),
     DAP  = as.numeric(date - plant_date),
     site = site_name,
@@ -410,7 +410,7 @@ auc_treat <- ndvi_treat_long %>%
 
 ndvi_treat_out <- ndvi_treat_long %>%
   left_join(auc_treat, by = c("site", "treat", "treat_desc", "zone")) %>%
-  select(site, date, DAP, treat, treat_desc, zone, mean_ndvi, AUC)
+  dplyr::select(site, date, DAP, treat, treat_desc, zone, mean_ndvi, AUC)
 
 out_file_treat <- file.path(saveDir,
                             paste0(site_name, "_NDVI_treatment_only_DAP.csv"))
@@ -423,7 +423,7 @@ cat("Outputs written to:", saveDir, "\n")
 
 
 # =============================================================================
-# SUB-STEP 1H (OPTIONAL): SAVE CLIPPED RASTER STACK FOR GIF/PNG RENDERING
+# SUB-STEP 1H : SAVE CLIPPED RASTER STACK FOR GIF/PNG RENDERING
 # =============================================================================
 
 boundary_path <- paste0(headDir, meta_val("boundary_shapefile"))

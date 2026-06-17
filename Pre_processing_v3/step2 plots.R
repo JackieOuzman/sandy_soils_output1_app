@@ -67,7 +67,7 @@ suppressPackageStartupMessages({
 # =============================================================================
 year_of_analysis <- 2026
 
-site_number_input <- 1  # 1 through 8
+site_number_input <- 8  # 1 through 8
 
 # =============================================================================
 # SITE LOOKUP TABLE
@@ -841,3 +841,4 @@ save_plot(p3b, paste0(site_name, "_AUC_zone.png"),
 
 cat("\n=== Script 2 complete ===\n")
 cat("All plots saved to:", saveDir, "\n")
+
