@@ -2,15 +2,22 @@
 # SCRIPT 2: NDVI Growth Curve Plots — af-sandysoils-ii
 # =============================================================================
 # Purpose:
-#   Reads the two CSV files produced by Script 1 and generates three sets
+#   Reads the two CSV files produced by Script 1 and generates four sets
 #   of plots for a selected site:
 #     1. NDVI growth curves (mean NDVI vs days after planting)
 #     2. Cumulative NDVI (running sum vs DAP)
-#     3. AUC bar charts (one value per treatment x zone combination)
+#     3. NDVI growth curves faceted by treatment (control as reference)
+#     4. Cumulative NDVI faceted by treatment (control as reference)
+#     5. AUC bar charts (one value per treatment x zone combination)
 #
-#   Each plot type is produced twice:
+#   Plot types 1, 2, and 5 are produced twice:
 #     a. Treatment only (all treatments, no zone split) — from treatment_only CSV
 #     b. Treatment x zone (faceted by zone) — from treatment_zone CSV
+#
+#   Plot types 3 and 4 are treatment-only, with each active treatment in its
+#   own facet panel and the Control curve repeated in every panel as a grey
+#   dashed reference line. This makes treatment vs control differences easier
+#   to read than the overlapping multi-line format.
 #
 #   Plots are displayed in the RStudio viewer and saved as PNG files.
 #
@@ -20,16 +27,29 @@
 #   Both from: headDir/7.In_Season_data/YY/8.Sentinel_QGIS_Jackie/Growth_curves_output/
 #
 # Outputs (saved to same Growth_curves_output folder):
-#   - <site_name>_growth_curve_treatment.png
-#   - <site_name>_growth_curve_zone.png
-#   - <site_name>_cumulative_ndvi_treatment.png
-#   - <site_name>_cumulative_ndvi_zone.png
-#   - <site_name>_AUC_treatment.png
-#   - <site_name>_AUC_zone.png
+#   - <site_name>_growth_curve_treatment.png        all treatments overlaid
+#   - <site_name>_growth_curve_zone.png             faceted by soil zone
+#   - <site_name>_growth_curve_by_treatment.png     faceted by treatment, control ref
+#   - <site_name>_cumulative_ndvi_treatment.png     all treatments overlaid
+#   - <site_name>_cumulative_ndvi_zone.png          faceted by soil zone
+#   - <site_name>_cumulative_ndvi_by_treatment.png  faceted by treatment, control ref
+#   - <site_name>_AUC_treatment.png                 bar chart, all treatments
+#   - <site_name>_AUC_zone.png                      bar chart, faceted by zone
+#
+# Notes:
+#   - Control is excluded from facet panels in plots 3 and 4 but appears as
+#     a grey dashed reference line in every panel via a ghost dataset built
+#     with tidyr::crossing().
+#   - dplyr::select() is called explicitly throughout to avoid masking by
+#     the raster package if loaded in the same session.
 #
 # Author:  Jackie Ouzman, CSIRO Agriculture & Food
 # Project: af-sandysoils-ii
 # Created: June 2025
+# Modified: June 2026 — added facet-by-treatment plots (1c, 2c) with
+#                        control reference line; added dplyr:: prefix to
+#                        select() calls to avoid raster package masking
+# =============================================================================
 # =============================================================================
 
 rm(list = ls())
