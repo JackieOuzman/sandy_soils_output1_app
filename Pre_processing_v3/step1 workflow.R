@@ -32,9 +32,18 @@
 #      Note: mean_ndvi here is extracted directly from pixels within each
 #      treatment strip — NOT an average of zone means — so it is unbiased.
 #
+# Nodata handling:
+#   Sentinel-2 tiles downloaded via the QGIS PAT Sentinel plugin code
+#   tile-edge pixels (outside the satellite swath) as 0 rather than NA.
+#   These are masked to NA before the stack is clipped and saved, so they
+#   render as transparent in the Shiny app and are excluded from all
+#   zonal statistics. The fix is applied at line ~425 before writeRaster().
+#
 # Author:  Jackie Ouzman, CSIRO Agriculture & Food
 # Project: af-sandysoils-ii
 # Created: June 2025
+# Modified: June 2026 — added zero-to-NA masking for Sentinel tile edges
+# =============================================================================
 # =============================================================================
 
 rm(list = ls())

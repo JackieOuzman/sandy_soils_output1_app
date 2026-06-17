@@ -47,7 +47,7 @@ suppressPackageStartupMessages({
 # =============================================================================
 year_of_analysis <- 2026
 
-site_number_input <- 3  # 1 through 8
+site_number_input <- 1  # 1 through 8
 
 # =============================================================================
 # SITE LOOKUP TABLE
@@ -109,7 +109,7 @@ treat_colours <- readxl::read_excel(
   sheet = "treatment names"
 ) %>%
   filter(Site == site_number) %>%
-  select(treat, treat_desc = `Treatment Name`, hex = Hex) %>%
+  dplyr::select(treat, treat_desc = `Treatment Name`, hex = Hex) %>%
   distinct()
 
 cat("Treatment colours loaded for", nrow(treat_colours), "treatments\n")
@@ -126,8 +126,8 @@ zone_labels <- readxl::read_excel(
   sheet = "zone_details"
 ) %>%
   filter(Site == site_number) %>%
-  select(zone = `zone names`, zone_label = `zone label names`) %>%
-  mutate(zone = as.character(zone))
+  dplyr::select(zone = `zone names`, zone_label = `zone label names`) %>%
+  dplyr::mutate(zone = as.character(zone))
 
 cat("Zone labels loaded for", nrow(zone_labels), "zones\n")
 
@@ -146,10 +146,10 @@ if (!file.exists(treat_only_file)) stop("File not found: ", treat_only_file)
 if (!file.exists(treat_zone_file)) stop("File not found: ", treat_zone_file)
 
 dat_treat <- read.csv(treat_only_file) %>%
-  mutate(date = as.Date(date))
+  dplyr::mutate(date = as.Date(date))
 
 dat_zone <- read.csv(treat_zone_file) %>%
-  mutate(
+  dplyr::mutate(
     date = as.Date(date),
     zone = as.character(zone)
   ) %>%
@@ -196,13 +196,13 @@ cat("Sowing date:", format(plant_date), "\n")
 dat_treat <- dat_treat %>%
   arrange(treat, DAP) %>%
   group_by(treat, treat_desc) %>%
-  mutate(cumulative_ndvi = cumsum(ifelse(is.na(mean_ndvi), 0, mean_ndvi))) %>%
+  dplyr::mutate(cumulative_ndvi = cumsum(ifelse(is.na(mean_ndvi), 0, mean_ndvi))) %>%
   ungroup()
 
 dat_zone <- dat_zone %>%
   arrange(treat, zone, DAP) %>%
   group_by(treat, treat_desc, zone, zone_label) %>%
-  mutate(cumulative_ndvi = cumsum(ifelse(is.na(mean_ndvi), 0, mean_ndvi))) %>%
+  dplyr::mutate(cumulative_ndvi = cumsum(ifelse(is.na(mean_ndvi), 0, mean_ndvi))) %>%
   ungroup()
 
 # =============================================================================
@@ -441,6 +441,90 @@ save_plot(p1b, paste0(site_name, "_growth_curve_zone.png"),
 
 
 
+# =============================================================================
+# PLOT 1C: GROWTH CURVE — FACETED BY TREATMENT (control in every panel)
+# =============================================================================
+
+cat("\n--- Plot 1c: Growth curve (faceted by treatment, control as reference) ---\n")
+
+# Active treatments only (exclude Control from facet panels)
+active_treats <- treat_colours %>%
+  filter(treat_desc != "Control") %>%
+  pull(treat_desc)
+
+# Ghost dataset: Control repeated for every active treatment panel
+control_ghost <- dat_treat %>%
+  filter(treat_desc == "Control") %>%
+  tidyr::crossing(facet_treat = active_treats)
+
+# Main dataset: active treatments only, with facet variable
+dat_treat_facet <- dat_treat %>%
+  filter(treat_desc != "Control") %>%
+  dplyr::mutate(facet_treat = treat_desc)
+
+p1c <- ggplot() +
+  # Control ghost line (grey dashed) in every panel
+  geom_smooth(
+    data    = control_ghost,
+    aes(x = DAP, y = mean_ndvi, group = treat_desc),
+    method  = "loess", span = loess_span, se = FALSE,
+    colour  = colour_vec["Control"],
+    linewidth = 1.2,
+    linetype  = "11"
+  ) +
+  # Active treatment line
+  geom_smooth(
+    data    = dat_treat_facet,
+    aes(x = DAP, y = mean_ndvi, colour = treat_desc, group = treat_desc),
+    method  = "loess", span = loess_span, se = FALSE,
+    linewidth = 1.0,
+    linetype  = "solid"
+  ) +
+  geom_vline(
+    data        = dap_date_lookup,
+    aes(xintercept = DAP),
+    inherit.aes = FALSE,
+    colour      = "grey75",
+    linewidth   = 0.3,
+    linetype    = "11"
+  ) +
+  facet_wrap(~ facet_treat, ncol = 2) +
+  scale_colour_manual(values = colour_vec, name = NULL) +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 6),
+    sec.axis = sec_axis(
+      transform = ~ . + as.numeric(plant_date),
+      name      = NULL,
+      breaks    = three_breaks$DAP + as.numeric(plant_date),
+      labels    = format(three_breaks$date, "%d %b")
+    )
+  ) +
+  scale_y_continuous(
+    limits = c(0, 0.85),
+    breaks = scales::pretty_breaks(n = 6)
+  ) +
+  labs(
+    title    = paste0(site_name, " \u2014 NDVI Growth Curves by Treatment"),
+    subtitle = paste0(year_of_analysis, " season | Grey dashed = Control reference"),
+    x        = "Days after planting (DAP)",
+    y        = "Mean NDVI"
+  ) +
+  theme_ndvi() +
+  theme(
+    legend.position          = "none",   # colour is redundant with facet label
+    axis.text.x.top          = element_text(size = 9, face = "bold", vjust = 0.5),
+    axis.ticks.x.top         = element_line(linewidth = 1.0, colour = "grey30"),
+    axis.ticks.length.x.top  = unit(0.2, "cm"),
+    panel.grid.major.y       = element_blank(),
+    panel.grid.major.x       = element_blank(),
+    strip.text               = element_text(face = "bold", size = 10)
+  )
+
+p1c
+
+save_plot(p1c, paste0(site_name, "_growth_curve_by_treatment.png"),
+          width = 22, height = 8 * ceiling(length(active_treats) / 2))
+
 
 # =============================================================================
 # PLOT 2A: CUMULATIVE NDVI — TREATMENT ONLY
@@ -594,6 +678,79 @@ p2b
 save_plot(p2b, paste0(site_name, "_cumulative_ndvi_zone.png"),
           width = 22, height = 8 * length(unique(dat_zone$zone)))
 
+
+# =============================================================================
+# PLOT 2C: CUMULATIVE NDVI — FACETED BY TREATMENT (control in every panel)
+# =============================================================================
+
+cat("\n--- Plot 2c: Cumulative NDVI (faceted by treatment, control as reference) ---\n")
+
+control_ghost_cum <- dat_treat %>%
+  filter(treat_desc == "Control") %>%
+  tidyr::crossing(facet_treat = active_treats)
+
+dat_treat_facet_cum <- dat_treat %>%
+  filter(treat_desc != "Control") %>%
+  dplyr::mutate(facet_treat = treat_desc)
+
+p2c <- ggplot() +
+  geom_line(
+    data      = control_ghost_cum,
+    aes(x = DAP, y = cumulative_ndvi, group = treat_desc),
+    colour    = colour_vec["Control"],
+    linewidth = 1.2,
+    linetype  = "11"
+  ) +
+  geom_line(
+    data      = dat_treat_facet_cum,
+    aes(x = DAP, y = cumulative_ndvi, colour = treat_desc, group = treat_desc),
+    linewidth = 1.0,
+    linetype  = "solid"
+  ) +
+  geom_vline(
+    data        = three_breaks,
+    aes(xintercept = DAP),
+    inherit.aes = FALSE,
+    colour      = "grey75",
+    linewidth   = 0.3,
+    linetype    = "11"
+  ) +
+  facet_wrap(~ facet_treat, ncol = 2) +
+  scale_colour_manual(values = colour_vec, name = NULL) +
+  scale_x_continuous(
+    breaks = scales::pretty_breaks(n = 6),
+    sec.axis = sec_axis(
+      transform = ~ . + as.numeric(plant_date),
+      name      = NULL,
+      breaks    = three_breaks$DAP + as.numeric(plant_date),
+      labels    = format(three_breaks$date, "%d %b")
+    )
+  ) +
+  scale_y_continuous(
+    limits = c(0, NA),
+    breaks = scales::pretty_breaks(n = 6)
+  ) +
+  labs(
+    title    = paste0(site_name, " \u2014 Cumulative NDVI by Treatment"),
+    subtitle = paste0(year_of_analysis, " season | Grey dashed = Control reference"),
+    x        = "Days after planting (DAP)",
+    y        = "Cumulative NDVI"
+  ) +
+  theme_ndvi() +
+  theme(
+    legend.position          = "none",
+    axis.text.x.top          = element_text(size = 9, face = "bold", vjust = 0.5),
+    axis.ticks.x.top         = element_line(linewidth = 1.0, colour = "grey30"),
+    axis.ticks.length.x.top  = unit(0.2, "cm"),
+    panel.grid.major.y       = element_blank(),
+    panel.grid.major.x       = element_blank(),
+    strip.text               = element_text(face = "bold", size = 10)
+  )
+
+p2c
+
+save_plot(p2c, paste0(site_name, "_cumulative_ndvi_by_treatment.png"),
+          width = 22, height = 8 * ceiling(length(active_treats) / 2))
 # =============================================================================
 # PLOT 3A: AUC BAR CHART — TREATMENT ONLY
 # =============================================================================
