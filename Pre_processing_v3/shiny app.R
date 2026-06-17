@@ -250,6 +250,17 @@ server <- function(input, output, session) {
     }
     
     r     <- terra::rast(tif_file)
+    
+    # Mask zeros before calculating season range
+    r_clean <- terra::classify(r, cbind(0, NA))
+    
+    # Store season min/max for use in the map render
+    season_min <- terra::global(r_clean, fun = "min", na.rm = TRUE) |> min()
+    season_max <- terra::global(r_clean, fun = "max", na.rm = TRUE) |> max()
+    
+    # Save to session for use in the map observer
+    session$userData$ndvi_domain <- c(season_min, season_max)
+    
     dates <- names(r)
     
     selectInput(
@@ -459,11 +470,22 @@ server <- function(input, output, session) {
         if (input$ndvi_date %in% names(r)) {
           
           r_layer <- r[[input$ndvi_date]]
+          
+          # Mask tile-edge nodata (coded as 0) to NA
+          r_layer <- terra::classify(r_layer, cbind(0, NA))
+          
           r_wgs84 <- terra::project(r_layer, "EPSG:4326")
+          
+          # Use seasonal domain if available, fall back to fixed global domain
+          domain_to_use <- if (!is.null(session$userData$ndvi_domain)) {
+            session$userData$ndvi_domain
+          } else {
+            ndvi_domain   # your fixed c(-0.2, 0.8)
+          }
           
           ndvi_pal <- colorNumeric(
             palette  = ndvi_colours,
-            domain   = ndvi_domain,
+            domain   = domain_to_use,
             na.color = "transparent"
           )
           
@@ -477,8 +499,10 @@ server <- function(input, output, session) {
             addLegend(
               position = "bottomleft",
               pal      = ndvi_pal,
-              values   = ndvi_domain,
-              title    = paste0("NDVI<br>", input$ndvi_date),
+              values   = domain_to_use,
+              title    = paste0("NDVI<br>", input$ndvi_date, 
+                                "<br><span style='font-size:10px; font-weight:normal; color:#666;'>",
+                                "Scale fitted to ", input$year, " season</span>"),
               opacity  = 0.8
             )
         }
