@@ -220,6 +220,9 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
+  # Serve the data directory as a static resource path
+  addResourcePath("plots", data_dir)
+  
   # --- Dynamic year dropdown ---
   output$year_ui <- renderUI({
     req(input$site)
@@ -573,12 +576,12 @@ server <- function(input, output, session) {
       return(helpText(paste0("No plot available for this selection: ", png_name)))
     }
     
-    www_dir <- file.path(getwd(), "www")
-    dir.create(www_dir, showWarnings = FALSE)
-    file.copy(png_path, file.path(www_dir, "current_plot.png"), overwrite = TRUE)
+    url_path <- paste0("plots/", input$site, "/",
+                       as.character(input$year), "/", png_name,
+                       "?t=", as.numeric(Sys.time()))
     
     tags$img(
-      src   = paste0("current_plot.png?t=", as.numeric(Sys.time())),
+      src   = url_path,
       style = "width:100%; max-width:1000px;"
     )
   })
