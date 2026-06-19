@@ -26,6 +26,8 @@ library(raster)
 # =============================================================================
 
 data_dir <- "H:/Output-1/shiny_app_data"
+#data on the internal server (this need to be changed to new Bowen)
+#data_dir <- "/datasets/work/sc-shiny/work/live_apps/Jackie_Ouzman/SSII_Output1_NDVI_App/shiny_app_data"
 
 # =============================================================================
 # LOAD METADATA
