@@ -25,7 +25,12 @@ library(raster)
 # PATH TO DATA
 # =============================================================================
 
-data_dir <- "H:/Output-1/shiny_app_data"
+#data_dir <- "H:/Output-1/shiny_app_data"
+#App data now is copied over to new bowen dirctory which is just for NDVI app data
+proj_dir_app_data <- "//fs1-cbr.nexus.csiro.au/{ss-output1-app-data}" 
+output_root <-  file.path(proj_dir_app_data,"work", "Output-1", "shiny_app_data")
+data_dir <-output_root
+#data_dir <- "H:/Output-1/shiny_app_data"
 #data on the internal server (this need to be changed to new Bowen)
 #data_dir <- "/datasets/work/sc-shiny/work/live_apps/Jackie_Ouzman/SSII_Output1_NDVI_App/shiny_app_data"
 
@@ -532,7 +537,7 @@ server <- function(input, output, session) {
     if (!is.null(trial_plan)) {
       
       trial_wgs84 <- sf::st_transform(trial_plan, crs = 4326) %>%
-        dplyr::filter(treat != "B") %>%
+        dplyr::filter(treat != "Buffer") %>%
         left_join(colours, by = c("treat", "treat_desc"))
       
       treat_pal <- colorFactor(
