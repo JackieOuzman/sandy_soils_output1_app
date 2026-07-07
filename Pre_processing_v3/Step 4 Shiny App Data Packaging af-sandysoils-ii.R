@@ -80,12 +80,14 @@ suppressPackageStartupMessages({
 })
 
 # --- Root paths (same as Scripts 1 and 2) ---
-proj_dir      <- "//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}"
+proj_dir      <-     "//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}"
 metadata_path <- file.path(proj_dir, "work", "Output-1", "0.Site-info")
 metadata_file <- "names of treatments per site 2025 metadata and other info.xlsx"
 
 # --- Where to write the packaged output ---
-output_root <- file.path(proj_dir, "work", "Output-1", "shiny_app_data")
+proj_dir_app_data <- "//fs1-cbr.nexus.csiro.au/{ss-output1-app-data}" 
+#output_root1 <- file.path(proj_dir,           "work", "Output-1", "shiny_app_data")
+output_root <-  file.path(proj_dir_app_data,"work", "Output-1", "shiny_app_data")
 cat("Output will be written to:\n ", output_root, "\n")
 
 

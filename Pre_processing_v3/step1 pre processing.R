@@ -277,7 +277,7 @@ zone_field <- case_when(
   site_number == "4.Wharminda_Woodys"            ~ "fcl_mdl",
   site_number == "5.Walpeup_Gums"                ~ "cluster3",
   site_number == "6.Crystal_Brook_Randals"        ~ "cluster",
-  site_number == "7.Wharminda_Bonanza"            ~ "DN",
+  site_number == "7.Wharminda_Bonanza"            ~ "cluster",#"DN"
   site_number == "8.Wynarka_Tanks"                ~ "zone",
   TRUE ~ NA_character_
 )
@@ -306,7 +306,7 @@ treat_zone <- sf::st_intersection(
   trial_plan_reproj %>% dplyr::select(treat, treat_desc),
   zone_shp_reproj   %>% dplyr::select(zone)
 ) %>%
-  filter(treat != "B")   # drop buffer strips
+  filter(treat != "Buffer")   # drop buffer strips
 
 cat("Treatment x zone combinations after removing Buffer:", nrow(treat_zone), "\n")
 
