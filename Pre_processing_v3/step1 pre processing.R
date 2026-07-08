@@ -376,7 +376,7 @@ cat("\n--- SUB-STEP 1G: Extracting mean NDVI (treatment only) ---\n")
 
 # Dissolve trial plan to one polygon per treatment (merges replicate strips)
 treat_only <- trial_plan_reproj %>%
-  filter(treat != "B") %>%
+  filter(treat != "Buffer") %>%
   group_by(treat, treat_desc) %>%
   summarise(.groups = "drop")
 
