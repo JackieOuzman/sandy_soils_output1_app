@@ -273,6 +273,7 @@ server <- function(input, output, session) {
     yr_dir   <- file.path(data_dir, input$site, as.character(input$year))
     tif_file <- file.path(yr_dir, paste0(input$site, "_NDVI_stack.tif"))
     
+    
     if (!file.exists(tif_file)) {
       return(helpText("No NDVI image available for this site and year."))
     }

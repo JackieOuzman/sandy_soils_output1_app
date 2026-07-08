@@ -175,6 +175,10 @@ treat_meta <- readxl::read_excel(
   dplyr::select(Site, treat, treat_desc = `Treatment Name`, hex = Hex) %>%
   distinct()
 
+# Drop auxiliary/reference sites (e.g. "98.Auxillary_Sites/...") that aren't
+# part of the 8 Output 1 trial sites
+treat_meta <- treat_meta %>% filter(Site %in% site_lookup$site_number)
+
 cat("Treatment metadata rows:", nrow(treat_meta), "\n")
 
 # Sheet 2: zone details
@@ -190,6 +194,7 @@ zone_meta <- readxl::read_excel(
   ) %>%
   mutate(zone = as.character(zone)) %>%
   distinct()
+zone_meta  <- zone_meta  %>% filter(Site %in% site_lookup$site_number)
 
 cat("Zone metadata rows:", nrow(zone_meta), "\n")
 
