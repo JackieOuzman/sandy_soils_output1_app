@@ -380,14 +380,13 @@ server <- function(input, output, session) {
   
   # --- Base map (rendered once, updated via proxy) ---
   output$map <- renderLeaflet({
-    leaflet() %>%
+    leaflet(options = leafletOptions(scrollWheelZoom = FALSE)) %>%
       addProviderTiles(
         provider = providers$Esri.WorldImagery,
         options  = providerTileOptions(maxZoom = 20)
       ) %>%
       setView(lng = 133.5, lat = -32.0, zoom = 6)
   })
-  
   # --- Update map when site or basemap selection changes ---
   observe({
     req(input$site, input$basemap, shp())
