@@ -103,6 +103,10 @@ ndvi_domain <- c(-0.2, 0.8)
 
 ui <- fluidPage(
   
+  tags$head(
+    tags$style(HTML("html { scroll-behavior: smooth; }"))
+  ),
+  
   # --- Title bar with CSIRO logo ---
   fluidRow(
     column(
@@ -170,6 +174,18 @@ ui <- fluidPage(
   
   hr(),
   
+  fluidRow(
+    column(
+      width = 12,
+      style = "text-align: center; padding: 8px 0;",
+      tags$a(
+        href  = "#growth_curves",
+        style = "text-decoration: none; font-weight: 600; color: #2E7D32;",
+        "Jump to growth curve plots ↓"
+      )
+    )
+  ),
+  
   # --- Map full width ---
   fluidRow(
     column(
@@ -178,13 +194,15 @@ ui <- fluidPage(
     )
   ),
   
+  
+  
   hr(),
   
   # --- Growth curves heading ---
   fluidRow(
     column(
       width = 12,
-      h3("Growth Curves")
+      tags$h3(id = "growth_curves", "Growth Curves")
     )
   ),
   
