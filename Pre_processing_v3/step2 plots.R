@@ -65,9 +65,9 @@ suppressPackageStartupMessages({
 # =============================================================================
 # USER INPUT — change site number and year  only
 # =============================================================================
-year_of_analysis <- 2026
+year_of_analysis <- 2025
 
-site_number_input <- 8  # 1 through 8
+site_number_input <- 6  # 1 through 8
 
 # =============================================================================
 # SITE LOOKUP TABLE
@@ -778,7 +778,9 @@ save_plot(p2c, paste0(site_name, "_cumulative_ndvi_by_treatment.png"),
 cat("\n--- Plot 3a: AUC bar chart (treatment only) ---\n")
 
 auc_treat <- dat_treat %>%
-  distinct(treat, treat_desc, AUC)
+  distinct(treat, treat_desc, AUC) %>% 
+  filter(treat_desc != "Buffer") |> 
+  filter(treat_desc  !="Outside Control")
 
 p3a <- ggplot(auc_treat,
               aes(x = reorder(treat_desc, AUC), y = AUC,
@@ -811,7 +813,9 @@ save_plot(p3a, paste0(site_name, "_AUC_treatment.png"),
 cat("\n--- Plot 3b: AUC bar chart (treatment x zone) ---\n")
 
 auc_zone <- dat_zone %>%
-  distinct(treat, treat_desc, zone, zone_label, AUC)
+  distinct(treat, treat_desc, zone, zone_label, AUC) %>% 
+  filter(treat_desc != "Buffer") |> 
+  filter(treat_desc  !="Outside Control")
 
 p3b <- ggplot(auc_zone,
               aes(x = reorder(treat_desc, AUC), y = AUC,
