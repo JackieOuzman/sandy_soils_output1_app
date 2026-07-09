@@ -120,6 +120,25 @@ ui <- fluidPage(
       tags$h3(
         "Sandy Soils Trial Sites — NDVI Viewer",
         style = "margin: 0; font-weight: 600;"
+      ),
+      # --- Push buttons to the right ---
+      div(
+        style = "margin-left: auto; display: flex; gap: 10px;",
+        tags$a(
+          href   = "docs/NDVI_Viewer_User_Guide.pdf",
+          target = "_blank",
+          class  = "btn btn-outline-secondary",
+          style  = "border: 1px solid #2E7D32; color: #2E7D32; font-weight: 600;",
+          icon("book"), " User Guide"
+        ),
+        tags$a(
+          href   = "docs/NDVI_Viewer_Metadata.pdf",
+          target = "_blank",
+          class  = "btn btn-outline-secondary",
+          style  = "border: 1px solid #2E7D32; color: #2E7D32; font-weight: 600;",
+          icon("info-circle"), " Metadata"
+        
+        )
       )
     )
   ),
@@ -247,6 +266,7 @@ server <- function(input, output, session) {
   
   # Serve the data directory as a static resource path
   addResourcePath("plots", data_dir)
+  addResourcePath("docs", file.path(data_dir, "docs"))
   
   # --- Dynamic year dropdown ---
   output$year_ui <- renderUI({
