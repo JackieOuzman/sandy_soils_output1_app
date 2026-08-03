@@ -117,6 +117,13 @@ ui <- fluidPage(
         height = "48px",
         alt    = "CSIRO logo"
       ),
+      ## NEW Aug26 ##
+      tags$img(
+        src    = "docs/GRDC_Logo_Primary_Default.jpg",
+        height = "48px",
+        alt    = "GRDC logo"
+      ),
+      ## NEW Aug26 ##
       tags$h3(
         "Sandy Soils Trial Sites — NDVI Viewer",
         style = "margin: 0; font-weight: 600;"
@@ -243,7 +250,9 @@ ui <- fluidPage(
         label    = "Plot type",
         choices  = c("Growth curve"    = "growth_curve",    # ← AUC moved to last
                      "Cumulative NDVI" = "cumulative_ndvi",
-                     "AUC"             = "AUC"),
+                     ##NEW Aug 2026##
+                     "Area Under Curve (AUC)"             = "AUC"),
+                     ##NEW Aug 2026##
         selected = "growth_curve"
       )
     )
