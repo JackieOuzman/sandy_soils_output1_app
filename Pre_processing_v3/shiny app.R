@@ -146,6 +146,14 @@ ui <- fluidPage(
           icon("info-circle"), " Metadata"
         
         )
+        ,
+        tags$a(
+          href   = "docs/NDVI_Viewer_Copyright_Disclaimer.pdf",
+          target = "_blank",
+          class  = "btn btn-outline-secondary",
+          style  = "border: 1px solid #2E7D32; color: #2E7D32; font-weight: 600;",
+          icon("copyright"), " Copyright/Disclaimer"
+        )
       )
     )
   ),
