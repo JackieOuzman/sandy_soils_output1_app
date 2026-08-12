@@ -106,6 +106,10 @@ ui <- fluidPage(
   tags$head(
     tags$style(HTML("html { scroll-behavior: smooth; }"))
   ),
+  # --- Google Analytics tracking (only fires on an actual Shiny server) ---
+  if (Sys.getenv('SHINY_PORT') != "") {
+    tags$head(includeHTML("google-analytics.html"))
+  },
   
   # --- Title bar with CSIRO logo ---
   fluidRow(
