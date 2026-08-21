@@ -65,9 +65,9 @@ suppressPackageStartupMessages({
 # =============================================================================
 # USER INPUT — change site number and year  only
 # =============================================================================
-year_of_analysis <- 2025
+year_of_analysis <- 2026
 
-site_number_input <- 6  # 1 through 8
+site_number_input <- 1  # 1 through 8
 
 # =============================================================================
 # SITE LOOKUP TABLE
@@ -341,7 +341,7 @@ p1a <- ggplot(dat_treat,
     )
   ) +
   scale_y_continuous(
-    limits = c(0, 0.85),
+    limits = c(0, 1.1),
     breaks = scales::pretty_breaks(n = 6)
   ) +
   labs(
@@ -429,7 +429,7 @@ p1b <- ggplot(dat_zone,
     )
   ) +
   scale_y_continuous(
-    limits = c(0, 0.85),
+    limits = c(0, 1.1),
     breaks = scales::pretty_breaks(n = 6)
   ) +
   labs(
@@ -520,7 +520,7 @@ p1c <- ggplot() +
     )
   ) +
   scale_y_continuous(
-    limits = c(0, 0.85),
+    limits = c(0, 1.1),
     breaks = scales::pretty_breaks(n = 6)
   ) +
   labs(

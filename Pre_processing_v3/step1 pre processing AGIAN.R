@@ -2,18 +2,20 @@
 # SCRIPT 1: NDVI Time Series Data Processing — af-sandysoils-ii
 # =============================================================================
 # Purpose:
-#   Reads per-image Sentinel NDVI TIF files for a selected trial site,
-#   stacks them into a multi-layer raster, removes duplicate dates, sorts
-#   chronologically, and calculates days after planting (DAP) using sowing
-#   dates from the project metadata file. Extracts mean NDVI per treatment
-#   strip and per soil zone (from separate shapefiles), then computes the
-#   area under the NDVI curve (AUC) for each treatment x zone combination
-#   using the trapezoidal rule. Also extracts treatment-level means directly
-#   from the raster (ignoring zones) to avoid averaging-of-averages bias.
-#   Saves two CSVs per site ready for Script 2 (plotting).
+#   Reads per-image Sentinel NDVI TIF files (from the NDVI subfolder) for a
+#   selected trial site, checks their georeferencing against the trial plan
+#   shapefile, stacks them into a multi-layer raster, removes duplicate
+#   dates, sorts chronologically, and calculates days after planting (DAP)
+#   using sowing dates from the project metadata file. Extracts mean NDVI
+#   per treatment strip and per soil zone (from separate shapefiles), then
+#   computes the area under the NDVI curve (AUC) for each treatment x zone
+#   combination using the trapezoidal rule. Also extracts treatment-level
+#   means directly from the raster (ignoring zones) to avoid
+#   averaging-of-averages bias. Saves two CSVs per site ready for Script 2
+#   (plotting).
 #
 # Inputs:
-#   - Per-image NDVI TIFs:  headDir/7.In_Season_data/YY/8.Sentinel_QGIS_Jackie/
+#   - Per-image NDVI TIFs:  headDir/7.In_Season_data/YY/8.Sentinel_QGIS_Jackie/NDVI/
 #   - Trial plan shapefile: path from metadata sheet "file location etc",
 #                           variable == "trial.plan"
 #   - Zone shapefile:       path from metadata sheet "file location etc",
@@ -33,16 +35,39 @@
 #      treatment strip — NOT an average of zone means — so it is unbiased.
 #
 # Nodata handling:
-#   Sentinel-2 tiles downloaded via the QGIS PAT Sentinel plugin code
-#   tile-edge pixels (outside the satellite swath) as 0 rather than NA.
-#   These are masked to NA before the stack is clipped and saved, so they
-#   render as transparent in the Shiny app and are excluded from all
-#   zonal statistics. The fix is applied at line ~425 before writeRaster().
+#   Some Sentinel-2 tile exports use -999 for nodata (tile-edge pixels
+#   outside the satellite swath). These are masked to NA in Sub-step 1A-ii,
+#   right after the stack is built and before any extraction, so they don't
+#   drag down the zonal means calculated in Sub-steps 1E and 1G. NOTE: for
+#   sites where nodata is already stored as true NA in the source TIFs
+#   (confirmed for Crystal_Brook_Brians_House and Walpeup_Gums, Aug 2026),
+#   this step finds 0 pixels to mask and is a no-op — that's expected, not
+#   an error.
+#
+# Georeferencing check (added Aug 2026):
+#   The pre-built "*_NDVI-Stack_10m.tif" file is NO LONGER USED as an input.
+#   It was found to carry incorrect coordinates for at least one site
+#   (Walpeup_Gums) despite a correct-looking CRS tag. Script now reads
+#   individual per-date TIFs from the "NDVI" subfolder instead, and checks
+#   each file's extent against the trial plan shapefile before stacking —
+#   any file whose extent doesn't overlap the trial plan is excluded and
+#   reported, since a subfolder may contain a mix of older mis-georeferenced
+#   exports and newer correct ones from the same QGIS tool.
+#
+# Known outstanding issue (flagged, not yet fixed):
+#   The Buffer-strip filter checks for treat != "Buffer", but the actual
+#   value in the trial plan shapefile is "BUFF" — so buffer strips are NOT
+#   currently being excluded from either output file (Sub-steps 1D and 1G).
+#   Confirmed present in Crystal_Brook_Brians_House outputs, Aug 2026.
+#   Fix (when ready): change "Buffer" to "BUFF" in both filter() calls below.
 #
 # Author:  Jackie Ouzman, CSIRO Agriculture & Food
 # Project: af-sandysoils-ii
 # Created: June 2025
 # Modified: June 2026 — added zero-to-NA masking for Sentinel tile edges
+# Modified: Aug 2026 — switched from pre-built stack to NDVI subfolder +
+#           trial-plan overlap check, after mis-georeferenced stack found
+#           for Walpeup_Gums
 # =============================================================================
 # =============================================================================
 
@@ -103,7 +128,6 @@ cat("Site selected:", site_number, "\n")
 # PATHS AND DIRECTORIES
 # =============================================================================
 
-
 yr_short         <- substr(as.character(year_of_analysis), 3, 4)   # "25"
 
 dir           <- "//fs1-cbr.nexus.csiro.au/{af-sandysoils-ii}"
@@ -140,15 +164,21 @@ meta_val <- function(var_name, col = "file path") {
     .[1]
 }
 
+# --- Read trial plan early, so we can sanity-check NDVI file extents against it ---
+trial_shp_path <- paste0(headDir, meta_val("trial.plan"))
+cat("Trial plan:", trial_shp_path, "\n")
+if (!file.exists(trial_shp_path)) stop("Trial plan shapefile not found: ", trial_shp_path)
+trial_plan <- sf::st_read(trial_shp_path, quiet = TRUE)
+trial_bbox <- st_bbox(trial_plan)
+
 # =============================================================================
-# SUB-STEP 1A: FIND, DEDUPLICATE AND STACK NDVI TIFS
+# SUB-STEP 1A: FIND AND LOAD NDVI DATA FROM THE NDVI SUBFOLDER
 # =============================================================================
-### Christina tool no longer outputs NDVI tifs they look they are all as a folder?
-#
-# =============================================================================
-# SUB-STEP 1A: FIND AND LOAD NDVI DATA (reads per-date TIFs from the NDVI
-# subfolder — the pre-built stack is no longer used, since it was found to
-# have incorrect georeferencing for some sites)
+# The pre-built stack ("*_NDVI-Stack_10m.tif") is intentionally NOT used —
+# see header note above. Individual per-date TIFs are read from the "NDVI"
+# subfolder, and each file's extent is checked against the trial plan
+# before stacking, since the folder can contain a mix of old
+# mis-georeferenced exports and newer correct ones.
 # =============================================================================
 
 cat("\n--- SUB-STEP 1A: Locating NDVI data ---\n")
@@ -179,24 +209,30 @@ if (any(is.na(img_dates))) {
        paste(fnames[is.na(img_dates)], collapse = ", "))
 }
 
-# --- Sanity check: flag any files whose extent doesn't match the majority ---
-# (Guards against a mix of old mis-georeferenced files and newer correct ones
-#  sitting in the same folder.)
-extents <- lapply(ndvi_files, function(f) round(as.vector(terra::ext(terra::rast(f))), 0))
-extent_str <- sapply(extents, paste, collapse = ",")
-extent_tbl <- table(extent_str)
+# --- Sanity check: keep only files whose extent overlaps the trial plan ---
+# (Guards against mis-georeferenced files sitting alongside correct ones —
+#  checked against the trial plan's true location, not by majority count,
+#  since a folder can have MORE old broken files than new correct ones.)
+file_overlaps_trial <- sapply(ndvi_files, function(f) {
+  e <- terra::ext(terra::rast(f))
+  !(e[2] < trial_bbox["xmin"] || e[1] > trial_bbox["xmax"] ||
+      e[4] < trial_bbox["ymin"] || e[3] > trial_bbox["ymax"])
+})
 
-cat("\nDistinct extents found among the", length(ndvi_files), "files:\n")
-print(extent_tbl)
+cat("\nFiles overlapping trial plan location:", sum(file_overlaps_trial),
+    "of", length(ndvi_files), "\n")
 
-if (length(extent_tbl) > 1) {
-  majority_extent <- names(extent_tbl)[which.max(extent_tbl)]
-  bad_idx <- which(extent_str != majority_extent)
-  cat("\nWARNING — files with a MINORITY (likely mis-georeferenced) extent, excluded:\n  ",
-      paste(fnames[bad_idx], collapse = "\n  "), "\n")
-  ndvi_files <- ndvi_files[-bad_idx]
-  img_dates  <- img_dates[-bad_idx]
-  fnames     <- fnames[-bad_idx]
+if (any(!file_overlaps_trial)) {
+  cat("WARNING — files excluded (extent does not overlap trial plan, likely mis-georeferenced):\n  ",
+      paste(fnames[!file_overlaps_trial], collapse = "\n  "), "\n")
+}
+
+ndvi_files <- ndvi_files[file_overlaps_trial]
+img_dates  <- img_dates[file_overlaps_trial]
+fnames     <- fnames[file_overlaps_trial]
+
+if (length(ndvi_files) == 0) {
+  stop("No NDVI files overlap the trial plan location — check georeferencing.")
 }
 
 # Remove duplicate dates — keep first occurrence
@@ -204,8 +240,9 @@ dup_flag <- duplicated(img_dates)
 if (any(dup_flag)) {
   cat("Removing", sum(dup_flag), "duplicate date(s):\n  ",
       paste(fnames[dup_flag], collapse = "\n  "), "\n")
-  ndvi_files   <- ndvi_files[!dup_flag]
-  img_dates    <- img_dates[!dup_flag]
+  ndvi_files <- ndvi_files[!dup_flag]
+  img_dates  <- img_dates[!dup_flag]
+  fnames     <- fnames[!dup_flag]
 }
 
 # Sort chronologically
@@ -216,6 +253,7 @@ img_dates  <- img_dates[ord]
 cat("\nDates after deduplication and sorting:\n  ",
     paste(format(img_dates), collapse = ", "), "\n")
 
+# Stack into a single SpatRaster (one layer per date)
 sen.dat        <- terra::rast(ndvi_files)
 names(sen.dat) <- format(img_dates, "%Y-%m-%d")
 
@@ -226,12 +264,14 @@ cat("Raster extent (xmin, xmax, ymin, ymax):",
     paste(round(as.vector(terra::ext(sen.dat)), 1), collapse = ", "), "\n")
 
 # =============================================================================
-# SUB-STEP 1A-ii: MASK NODATA VALUES (-999) TO NA ***NEW****
+# SUB-STEP 1A-ii: MASK NODATA VALUES (-999) TO NA
 # =============================================================================
-# Sentinel-2 tiles from Marta's QGIS date-range export tool use -999 for
-# nodata (tile-edge pixels outside the satellite swath). These must be
-# converted to NA here, before any extraction, so they don't drag down
-# the zonal means calculated in Sub-steps 1E and 1G.
+# Some Sentinel-2 exports use -999 for nodata (tile-edge pixels outside the
+# satellite swath). These are converted to NA here, before any extraction,
+# so they don't drag down the zonal means calculated in Sub-steps 1E and 1G.
+# NOTE: for sites where nodata is already true NA in the source files, this
+# step will report 0 pixels masked — that's expected, not an error (the
+# sum(is.na(...)) check afterward confirms real NA is still present).
 # =============================================================================
 
 cat("\n--- SUB-STEP 1A-ii: Masking nodata (-999) to NA ---\n")
@@ -251,7 +291,7 @@ sen.dat <- terra::app(sen.dat, fun = function(x) {
 names(sen.dat) <- format(img_dates, "%Y-%m-%d")
 
 cat("Nodata masking complete.\n")
-sum(is.na(values(sen.dat)))
+cat("Total NA cells in stack:", sum(is.na(values(sen.dat))), "\n")
 
 # =============================================================================
 # SUB-STEP 1B: SOWING DATE AND DAYS AFTER PLANTING
@@ -304,16 +344,13 @@ dap_vec <- as.numeric(img_dates - plant_date)
 cat("DAP values:", paste(dap_vec, collapse = ", "), "\n")
 
 # =============================================================================
-# SUB-STEP 1C: READ TRIAL PLAN AND ZONE SHAPEFILES
+# SUB-STEP 1C: READ ZONE SHAPEFILE
+# =============================================================================
+# (Trial plan was already read earlier, before Sub-step 1A, so it could be
+#  used for the extent sanity check on the NDVI files.)
 # =============================================================================
 
-cat("\n--- SUB-STEP 1C: Reading shapefiles ---\n")
-
-# --- Trial plan ---
-trial_shp_path <- paste0(headDir, meta_val("trial.plan"))
-cat("Trial plan:", trial_shp_path, "\n")
-if (!file.exists(trial_shp_path)) stop("Trial plan shapefile not found: ", trial_shp_path)
-trial_plan <- sf::st_read(trial_shp_path, quiet = TRUE)
+cat("\n--- SUB-STEP 1C: Reading zone shapefile ---\n")
 
 # --- Zone shapefile ---
 zone_shp_path <- paste0(headDir, meta_val("location of zone shp"))
@@ -344,6 +381,9 @@ if (!zone_field %in% names(zone_shp)) {
 # =============================================================================
 # SUB-STEP 1D: ALIGN CRS, INTERSECT TREATMENTS x ZONES
 # =============================================================================
+# NOTE: filter(treat != "Buffer") below does not currently match anything —
+# the real value is "BUFF" (see header note). Flagged, not yet fixed.
+# =============================================================================
 
 cat("\n--- SUB-STEP 1D: Intersecting treatment strips x zones ---\n")
 
@@ -358,7 +398,7 @@ treat_zone <- sf::st_intersection(
   trial_plan_reproj %>% dplyr::select(treat, treat_desc),
   zone_shp_reproj   %>% dplyr::select(zone)
 ) %>%
-  filter(treat != "Buffer")   # drop buffer strips
+  filter(treat != "Buffer")   # drop buffer strips — NOTE: real value is "BUFF", see header
 
 cat("Treatment x zone combinations after removing Buffer:", nrow(treat_zone), "\n")
 
@@ -422,6 +462,8 @@ cat("Saved:", out_file, "\n")
 # =============================================================================
 # Pixels are extracted fresh from the raster for each dissolved treatment
 # polygon — this avoids any averaging-of-averages bias from the zone data.
+# NOTE: filter(treat != "Buffer") below has the same "BUFF" mismatch as
+# Sub-step 1D — see header note.
 # =============================================================================
 
 cat("\n--- SUB-STEP 1G: Extracting mean NDVI (treatment only) ---\n")
@@ -492,4 +534,3 @@ if (file.exists(boundary_path)) {
 } else {
   cat("Boundary shapefile not found — skipping clipped stack save\n")
 }
-
