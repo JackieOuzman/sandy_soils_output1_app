@@ -88,7 +88,7 @@ suppressPackageStartupMessages({
 # =============================================================================
 year_of_analysis <- 2026
 
-site_number_input <- 5 # 1 through 8
+site_number_input <- 1 # 1 through 8
 
 # =============================================================================
 # SITE LOOKUP TABLE
@@ -182,7 +182,7 @@ trial_bbox <- st_bbox(trial_plan)
 # =============================================================================
 
 cat("\n--- SUB-STEP 1A: Locating NDVI data ---\n")
-
+ndvi_dir
 ndvi_subfolder <- file.path(ndvi_dir, "NDVI")
 
 if (!dir.exists(ndvi_subfolder)) {
@@ -534,3 +534,4 @@ if (file.exists(boundary_path)) {
 } else {
   cat("Boundary shapefile not found — skipping clipped stack save\n")
 }
+
