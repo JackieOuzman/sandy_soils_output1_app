@@ -88,7 +88,7 @@ suppressPackageStartupMessages({
 # =============================================================================
 year_of_analysis <- 2026
 
-site_number_input <- 1 # 1 through 8
+site_number_input <- 4 # 1 through 8
 
 # =============================================================================
 # SITE LOOKUP TABLE
