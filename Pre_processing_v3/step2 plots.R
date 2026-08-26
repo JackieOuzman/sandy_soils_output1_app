@@ -67,7 +67,7 @@ suppressPackageStartupMessages({
 # =============================================================================
 year_of_analysis <- 2026
 
-site_number_input <- 3  # 1 through 8
+site_number_input <- 8  # 1 through 8
 
 # =============================================================================
 # SITE LOOKUP TABLE
@@ -802,6 +802,7 @@ p3a <- ggplot(auc_treat,
   theme(panel.grid.major.y = element_blank())
 
 p3a
+
 
 save_plot(p3a, paste0(site_name, "_AUC_treatment.png"),
           width = 20, height = 12)
