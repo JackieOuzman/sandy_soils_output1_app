@@ -88,7 +88,7 @@ suppressPackageStartupMessages({
 # =============================================================================
 year_of_analysis <- 2026
 
-site_number_input <- 8 # 1 through 8
+site_number_input <- 3 # 1 through 8
 
 # =============================================================================
 # SITE LOOKUP TABLE
@@ -169,6 +169,17 @@ trial_shp_path <- paste0(headDir, meta_val("trial.plan"))
 cat("Trial plan:", trial_shp_path, "\n")
 if (!file.exists(trial_shp_path)) stop("Trial plan shapefile not found: ", trial_shp_path)
 trial_plan <- sf::st_read(trial_shp_path, quiet = TRUE)
+
+# <<< NEW BLOCK START: keep only strips valid for this year (Yr_Treat = "All" or the analysis year; "Nil" is dropped)
+if ("Yr_Treat" %in% names(trial_plan)) {
+  cat("Yr_Treat values found:", paste(unique(trial_plan$Yr_Treat), collapse = ", "), "\n")
+  n_before   <- nrow(trial_plan)
+  trial_plan <- trial_plan %>%
+    filter(Yr_Treat %in% c("All", as.character(year_of_analysis)))
+  cat("Yr_Treat filter kept", nrow(trial_plan), "of", n_before, "polygons for", year_of_analysis, "\n")
+}
+# <<< NEW BLOCK END
+
 trial_bbox <- st_bbox(trial_plan)
 
 # =============================================================================
