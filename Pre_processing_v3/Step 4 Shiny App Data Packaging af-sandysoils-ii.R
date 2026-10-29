@@ -64,10 +64,32 @@
 #                        cumulative_ndvi_by_treatment.png (faceted by
 #                        treatment with Control as reference line)
 # =============================================================================
+#  BACKUP
 # =============================================================================
+# START: back up the current app data before anything is overwritten
+do_backup <- TRUE    # set to FALSE for quick re-runs once today's backup exists
+
+if (do_backup) {
+  bak_root <- file.path(proj_dir_app_data, "work", "Output-1",
+                        paste0("shiny_app_data_BACKUP_", format(Sys.Date(), "%Y-%m-%d")))
+  
+  if (!dir.exists(output_root)) {
+    cat("No existing shiny_app_data to back up.\n")
+  } else if (dir.exists(bak_root)) {
+    cat("Backup for today already exists, skipping:\n ", bak_root, "\n")
+  } else {
+    cat("Backing up current app data (this can take a few minutes)...\n")
+    dir.create(bak_root)
+    file.copy(output_root, bak_root, recursive = TRUE)
+    n_src <- length(list.files(output_root, recursive = TRUE))
+    n_bak <- length(list.files(file.path(bak_root, basename(output_root)), recursive = TRUE))
+    cat("Files in app data:", n_src, "| files in backup:", n_bak, "\n")
+    if (n_src != n_bak) stop("Backup file counts do not match, stopping before anything is overwritten.")
+  }
+}
 
 # =============================================================================
-# CHUNK 1: Libraries and user settings
+# CHUNK 1: Libraries and user settings and back up
 # =============================================================================
 
 rm(list = ls())
@@ -89,6 +111,10 @@ proj_dir_app_data <- "//fs1-cbr.nexus.csiro.au/{ss-output1-app-data}"
 #output_root1 <- file.path(proj_dir,           "work", "Output-1", "shiny_app_data")
 output_root <-  file.path(proj_dir_app_data,"work", "Output-1", "shiny_app_data")
 cat("Output will be written to:\n ", output_root, "\n")
+
+
+
+
 
 
 # =============================================================================
@@ -128,7 +154,8 @@ site_lookup <- data.frame(
     "fcl_mdl",    # 4. Wharminda_Woodys
     "cluster3",   # 5. Walpeup_Gums
     "cluster",    # 6. Crystal_Brook_Randals
-    "DN",         # 7. Wharminda_Bonanza
+    #"DN",         # 7. Wharminda_Bonanza
+    "cluster",    # 7. Wharminda_Bonanza   # <<< CHANGED from "DN"
     "zone"        # 8. Wynarka_Tanks
   ),
   years = I(list(
@@ -139,7 +166,7 @@ site_lookup <- data.frame(
     c(2025, 2026),   # 5. Walpeup_Gums
     c(2025, 2026),   # 6. Crystal_Brook_Randals
     c(2026),         # 7. Wharminda_Bonanza
-    c(2026)          # 8. Wynarka_Tanks
+    c(2025, 2026)    # 8. Wynarka_Tanks   # <<< CHANGED: added 2025
   )),
   stringsAsFactors = FALSE
 )
@@ -323,6 +350,10 @@ copy_shapefile <- function(src_shp_path, dest_folder) {
   
   dir.create(dest_folder, recursive = TRUE, showWarnings = FALSE)
   
+  # <<< NEW: remove any old files so stale shapefiles can't sit beside the new one
+  old_files <- list.files(dest_folder, full.names = TRUE)
+  if (length(old_files) > 0) file.remove(old_files)
+  
   n_copied  <- 0
   n_missing <- 0
   
@@ -391,10 +422,10 @@ for (i in seq_len(nrow(site_lookup))) {
       # --- Pre-rendered PNGs (optional) ---
       list(name = paste0(snm, "_growth_curve_treatment.png"),         required = FALSE),
       list(name = paste0(snm, "_growth_curve_zone.png"),              required = FALSE),
-      list(name = paste0(snm, "_growth_curve_by_treatment.png"),      required = FALSE),  # new
+      #list(name = paste0(snm, "_growth_curve_by_treatment.png"),      required = FALSE),  # remove
       list(name = paste0(snm, "_cumulative_ndvi_treatment.png"),      required = FALSE),
       list(name = paste0(snm, "_cumulative_ndvi_zone.png"),           required = FALSE),
-      list(name = paste0(snm, "_cumulative_ndvi_by_treatment.png"),   required = FALSE),  # new
+      #list(name = paste0(snm, "_cumulative_ndvi_by_treatment.png"),   required = FALSE),  # remove
       list(name = paste0(snm, "_AUC_treatment.png"),                  required = FALSE),
       list(name = paste0(snm, "_AUC_zone.png"),                       required = FALSE)
     )
@@ -472,7 +503,7 @@ required_log <- all_log %>%
 n_ok      <- sum(required_log$status == "copied")
 n_missing <- sum(grepl("MISSING", required_log$status))
 
-print(required_log %>% dplyr::select(site, year, type, file, status), n = Inf)
+print(dplyr::as_tibble(required_log %>% dplyr::select(site, year, type, file, status)), n = Inf)   # <<< CHANGED: tibble so n = Inf works
 
 cat("\nRequired items copied: ", n_ok, "\n")
 cat("Required items missing:", n_missing, "\n")
