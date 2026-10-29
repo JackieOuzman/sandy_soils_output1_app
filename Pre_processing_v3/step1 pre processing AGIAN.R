@@ -81,6 +81,7 @@ suppressPackageStartupMessages({
   library(tidyr)
   library(lubridate)
   library(readxl)
+  
 })
 
 # =============================================================================
@@ -88,7 +89,7 @@ suppressPackageStartupMessages({
 # =============================================================================
 year_of_analysis <- 2026
 
-site_number_input <- 3 # 1 through 8
+site_number_input <- 8 # 1 through 8
 
 # =============================================================================
 # SITE LOOKUP TABLE
@@ -409,10 +410,15 @@ treat_zone <- sf::st_intersection(
   trial_plan_reproj %>% dplyr::select(treat, treat_desc),
   zone_shp_reproj   %>% dplyr::select(zone)
 ) %>%
-  filter(treat != "Buffer")   # drop buffer strips — NOTE: real value is "BUFF", see header
+  filter(!grepl("buff", treat, ignore.case = TRUE),          # <<< CHANGED: catches Buffer / BUFF / buff etc.
+         !grepl("buff", treat_desc, ignore.case = TRUE))     # <<< CHANGED
+cat("Pieces BEFORE dissolve:", nrow(treat_zone), "\n")                 # <<< NEW
 
-cat("Treatment x zone combinations after removing Buffer:", nrow(treat_zone), "\n")
+treat_zone <- treat_zone %>%                                           # <<< NEW
+  group_by(treat, treat_desc, zone) %>%                                # <<< NEW
+  summarise(.groups = "drop")                                          # <<< NEW
 
+cat("Treatment x zone combinations after dissolve:", nrow(treat_zone), "\n")   # <<< CHANGED label
 treat_zone_v <- terra::vect(treat_zone)
 
 # =============================================================================
@@ -481,7 +487,8 @@ cat("\n--- SUB-STEP 1G: Extracting mean NDVI (treatment only) ---\n")
 
 # Dissolve trial plan to one polygon per treatment (merges replicate strips)
 treat_only <- trial_plan_reproj %>%
-  filter(treat != "Buffer") %>%
+  filter(!grepl("buff", treat, ignore.case = TRUE),          # <<< CHANGED
+         !grepl("buff", treat_desc, ignore.case = TRUE)) %>% # <<< CHANGED
   group_by(treat, treat_desc) %>%
   summarise(.groups = "drop")
 

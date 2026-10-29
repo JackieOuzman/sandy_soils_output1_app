@@ -60,6 +60,7 @@ suppressPackageStartupMessages({
   library(ggplot2)
   library(readxl)
   library(stringr)
+  library(tidytext)
 })
 
 # =============================================================================
@@ -174,6 +175,20 @@ dat_zone <- read.csv(treat_zone_file) %>%
     zone = as.character(zone)
   ) %>%
   left_join(zone_labels, by = "zone")
+
+#  order Mallee zone panels Dune, Transition, Swale (other sites unchanged)
+zone_order <- c("dune", "swale transition", "transition", "swale")   # <<< CHANGED: longer names first
+labs_all   <- unique(dat_zone$zone_label)
+lab_key    <- tolower(labs_all)
+rank_of    <- sapply(lab_key, function(l) {                         # <<< CHANGED
+  hit <- which(sapply(zone_order, function(z) grepl(z, l, fixed = TRUE)))
+  if (length(hit) == 0) NA_integer_ else hit[1]
+})
+if (!any(is.na(rank_of))) {                                         # <<< CHANGED
+  dat_zone$zone_label <- factor(dat_zone$zone_label, levels = labs_all[order(rank_of)])
+}
+
+
 
 cat("Treatment-only rows:", nrow(dat_treat), "\n")
 cat("Treatment x zone rows:", nrow(dat_zone), "\n")
@@ -461,90 +476,6 @@ save_plot(p1b, paste0(site_name, "_growth_curve_zone.png"),
 
 
 
-# =============================================================================
-# PLOT 1C: GROWTH CURVE — FACETED BY TREATMENT (control in every panel)
-# =============================================================================
-
-cat("\n--- Plot 1c: Growth curve (faceted by treatment, control as reference) ---\n")
-
-# Active treatments only (exclude Control from facet panels)
-active_treats <- treat_colours %>%
-  filter(treat_desc != "Control") %>%
-  pull(treat_desc)
-
-# Ghost dataset: Control repeated for every active treatment panel
-control_ghost <- dat_treat %>%
-  filter(treat_desc == "Control") %>%
-  tidyr::crossing(facet_treat = active_treats)
-
-# Main dataset: active treatments only, with facet variable
-dat_treat_facet <- dat_treat %>%
-  filter(treat_desc != "Control") %>%
-  dplyr::mutate(facet_treat = treat_desc)
-
-p1c <- ggplot() +
-  # Control ghost line (grey dashed) in every panel
-  geom_smooth(
-    data    = control_ghost,
-    aes(x = DAP, y = mean_ndvi, group = treat_desc),
-    method  = "loess", span = loess_span, se = FALSE,
-    colour  = colour_vec["Control"],
-    linewidth = 1.2,
-    linetype  = "11"
-  ) +
-  # Active treatment line
-  geom_smooth(
-    data    = dat_treat_facet,
-    aes(x = DAP, y = mean_ndvi, colour = treat_desc, group = treat_desc),
-    method  = "loess", span = loess_span, se = FALSE,
-    linewidth = 1.0,
-    linetype  = "solid"
-  ) +
-  geom_vline(
-    data        = dap_date_lookup,
-    aes(xintercept = DAP),
-    inherit.aes = FALSE,
-    colour      = "grey75",
-    linewidth   = 0.3,
-    linetype    = "11"
-  ) +
-  facet_wrap(~ facet_treat, ncol = 2) +
-  scale_colour_manual(values = colour_vec, name = NULL) +
-  scale_x_continuous(
-    breaks = scales::pretty_breaks(n = 6),
-    sec.axis = sec_axis(
-      transform = ~ . + as.numeric(plant_date),
-      name      = NULL,
-      breaks    = three_breaks$DAP + as.numeric(plant_date),
-      labels    = format(three_breaks$date, "%d %b")
-    )
-  ) +
-  scale_y_continuous(
-    limits = c(0, 1.1),
-    breaks = scales::pretty_breaks(n = 6)
-  ) +
-  labs(
-    title    = paste0(site_name, " \u2014 NDVI Growth Curves by Treatment"),
-    subtitle = paste0(year_of_analysis, " season | Grey dashed = Control reference"),
-    x        = "Days after planting (DAP)",
-    y        = "Mean NDVI"
-  ) +
-  theme_ndvi() +
-  theme(
-    legend.position          = "none",   # colour is redundant with facet label
-    axis.text.x.top          = element_text(size = 9, face = "bold", vjust = 0.5),
-    axis.ticks.x.top         = element_line(linewidth = 1.0, colour = "grey30"),
-    axis.ticks.length.x.top  = unit(0.2, "cm"),
-    panel.grid.major.y       = element_blank(),
-    panel.grid.major.x       = element_blank(),
-    strip.text               = element_text(face = "bold", size = 10)
-  )
-
-p1c
-
-save_plot(p1c, paste0(site_name, "_growth_curve_by_treatment.png"),
-          width = 22, height = 8 * ceiling(length(active_treats) / 2))
-
 
 # =============================================================================
 # PLOT 2A: CUMULATIVE NDVI — TREATMENT ONLY
@@ -699,78 +630,7 @@ save_plot(p2b, paste0(site_name, "_cumulative_ndvi_zone.png"),
           width = 22, height = 8 * length(unique(dat_zone$zone)))
 
 
-# =============================================================================
-# PLOT 2C: CUMULATIVE NDVI — FACETED BY TREATMENT (control in every panel)
-# =============================================================================
 
-cat("\n--- Plot 2c: Cumulative NDVI (faceted by treatment, control as reference) ---\n")
-
-control_ghost_cum <- dat_treat %>%
-  filter(treat_desc == "Control") %>%
-  tidyr::crossing(facet_treat = active_treats)
-
-dat_treat_facet_cum <- dat_treat %>%
-  filter(treat_desc != "Control") %>%
-  dplyr::mutate(facet_treat = treat_desc)
-
-p2c <- ggplot() +
-  geom_line(
-    data      = control_ghost_cum,
-    aes(x = DAP, y = cumulative_ndvi, group = treat_desc),
-    colour    = colour_vec["Control"],
-    linewidth = 1.2,
-    linetype  = "11"
-  ) +
-  geom_line(
-    data      = dat_treat_facet_cum,
-    aes(x = DAP, y = cumulative_ndvi, colour = treat_desc, group = treat_desc),
-    linewidth = 1.0,
-    linetype  = "solid"
-  ) +
-  geom_vline(
-    data        = three_breaks,
-    aes(xintercept = DAP),
-    inherit.aes = FALSE,
-    colour      = "grey75",
-    linewidth   = 0.3,
-    linetype    = "11"
-  ) +
-  facet_wrap(~ facet_treat, ncol = 2) +
-  scale_colour_manual(values = colour_vec, name = NULL) +
-  scale_x_continuous(
-    breaks = scales::pretty_breaks(n = 6),
-    sec.axis = sec_axis(
-      transform = ~ . + as.numeric(plant_date),
-      name      = NULL,
-      breaks    = three_breaks$DAP + as.numeric(plant_date),
-      labels    = format(three_breaks$date, "%d %b")
-    )
-  ) +
-  scale_y_continuous(
-    limits = c(0, NA),
-    breaks = scales::pretty_breaks(n = 6)
-  ) +
-  labs(
-    title    = paste0(site_name, " \u2014 Cumulative NDVI by Treatment"),
-    subtitle = paste0(year_of_analysis, " season | Grey dashed = Control reference"),
-    x        = "Days after planting (DAP)",
-    y        = "Cumulative NDVI"
-  ) +
-  theme_ndvi() +
-  theme(
-    legend.position          = "none",
-    axis.text.x.top          = element_text(size = 9, face = "bold", vjust = 0.5),
-    axis.ticks.x.top         = element_line(linewidth = 1.0, colour = "grey30"),
-    axis.ticks.length.x.top  = unit(0.2, "cm"),
-    panel.grid.major.y       = element_blank(),
-    panel.grid.major.x       = element_blank(),
-    strip.text               = element_text(face = "bold", size = 10)
-  )
-
-p2c
-
-save_plot(p2c, paste0(site_name, "_cumulative_ndvi_by_treatment.png"),
-          width = 22, height = 8 * ceiling(length(active_treats) / 2))
 # =============================================================================
 # PLOT 3A: AUC BAR CHART — TREATMENT ONLY
 # =============================================================================
@@ -796,7 +656,7 @@ p3a <- ggplot(auc_treat,
     subtitle = paste0(year_of_analysis, " season | All treatments"),
     x        = "AUC (NDVI-days)",
     y        = NULL,
-    caption  = "AUC = area under the NDVI growth curve (trapezoidal rule).\nHigher values indicate greater cumulative canopy greenness across the season,\nreflecting both peak NDVI and duration of green cover."
+    caption  = "AUC = area under the NDVI growth curve (trapezoidal rule).\nHigher values indicate greater cumulative canopy greenness across the season,\nreflecting both peak NDVI and duration of green cover.\nMean NDVI is the average of all pixels in each treatment; replicate strips are pooled."   # <<< CHANGED: new last line
   ) +
   theme_ndvi() +
   theme(panel.grid.major.y = element_blank())
@@ -819,21 +679,23 @@ auc_zone <- dat_zone %>%
   filter(treat_desc  !="Outside Control")
 
 p3b <- ggplot(auc_zone,
-              aes(x = reorder(treat_desc, AUC), y = AUC,
+              aes(x = tidytext::reorder_within(treat_desc, AUC, zone_label), y = AUC,   # <<< CHANGED
                   fill = treat_desc)) +
   geom_col(width = 0.7, colour = "white") +
   geom_text(aes(label = round(AUC, 1)),
             hjust = -0.15, size = 3.2, colour = "grey30") +
   scale_fill_manual(values = colour_vec, guide = "none") +
   scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
+  tidytext::scale_x_reordered() +                                  # <<< NEW
   coord_flip() +
-  facet_wrap(~ zone_label, ncol = 1) +
+  facet_wrap(~ zone_label, ncol = 1, scales = "free_y") +          # <<< CHANGED
+  
   labs(
     title    = paste0(site_name, " — Area Under NDVI Curve (AUC) by Zone"),
     subtitle = paste0(year_of_analysis, " season | Faceted by soil zone"),
     x        = "AUC (NDVI-days)",
     y        = NULL,
-    caption  = "AUC = area under the NDVI growth curve (trapezoidal rule).\nHigher values indicate greater cumulative canopy greenness across the season,\nreflecting both peak NDVI and duration of green cover."
+    caption  = "AUC = area under the NDVI growth curve (trapezoidal rule).\nHigher values indicate greater cumulative canopy greenness across the season,\nreflecting both peak NDVI and duration of green cover.\nMean NDVI is the average of all pixels in each treatment x zone; replicate strips are pooled."   # <<< CHANGED: new last line
   ) +
     
   theme_ndvi() +
