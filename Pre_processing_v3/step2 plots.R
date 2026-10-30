@@ -2,22 +2,16 @@
 # SCRIPT 2: NDVI Growth Curve Plots — af-sandysoils-ii
 # =============================================================================
 # Purpose:
-#   Reads the two CSV files produced by Script 1 and generates four sets
+#   Reads the two CSV files produced by Script 1 and generates three sets
 #   of plots for a selected site:
 #     1. NDVI growth curves (mean NDVI vs days after planting)
 #     2. Cumulative NDVI (running sum vs DAP)
-#     3. NDVI growth curves faceted by treatment (control as reference)
-#     4. Cumulative NDVI faceted by treatment (control as reference)
-#     5. AUC bar charts (one value per treatment x zone combination)
+#     3. AUC bar charts, ranked high to low (one value per treatment, or per
+#        treatment x zone)
 #
-#   Plot types 1, 2, and 5 are produced twice:
+#   Each plot type is produced twice:
 #     a. Treatment only (all treatments, no zone split) — from treatment_only CSV
 #     b. Treatment x zone (faceted by zone) — from treatment_zone CSV
-#
-#   Plot types 3 and 4 are treatment-only, with each active treatment in its
-#   own facet panel and the Control curve repeated in every panel as a grey
-#   dashed reference line. This makes treatment vs control differences easier
-#   to read than the overlapping multi-line format.
 #
 #   Plots are displayed in the RStudio viewer and saved as PNG files.
 #
@@ -25,21 +19,29 @@
 #   - <site_name>_NDVI_treatment_only_DAP.csv
 #   - <site_name>_NDVI_treatment_zone_DAP.csv
 #   Both from: headDir/7.In_Season_data/YY/8.Sentinel_QGIS_Jackie/Growth_curves_output/
+#   - Metadata Excel, sheets: "treatment names" (colours), "zone_details"
+#     (zone labels) and "seasons" (sowing date, for the date axis)
 #
 # Outputs (saved to same Growth_curves_output folder):
 #   - <site_name>_growth_curve_treatment.png        all treatments overlaid
 #   - <site_name>_growth_curve_zone.png             faceted by soil zone
-#   - <site_name>_growth_curve_by_treatment.png     faceted by treatment, control ref
 #   - <site_name>_cumulative_ndvi_treatment.png     all treatments overlaid
 #   - <site_name>_cumulative_ndvi_zone.png          faceted by soil zone
-#   - <site_name>_cumulative_ndvi_by_treatment.png  faceted by treatment, control ref
-#   - <site_name>_AUC_treatment.png                 bar chart, all treatments
-#   - <site_name>_AUC_zone.png                      bar chart, faceted by zone
+#   - <site_name>_AUC_treatment.png                 bar chart, ranked by AUC
+#   - <site_name>_AUC_zone.png                      bar chart, ranked within each zone
 #
 # Notes:
-#   - Control is excluded from facet panels in plots 3 and 4 but appears as
-#     a grey dashed reference line in every panel via a ghost dataset built
-#     with tidyr::crossing().
+#   - Date window: the CSVs from Script 1 already contain only images from
+#     sowing to harvest (or to the latest image if harvest is blank), so the
+#     growth curves, cumulative NDVI and AUC all cover the same period.
+#   - Treatment colours are matched by treat_desc to the "treatment names" sheet.
+#     If a treatment is missing a colour, check for a trailing space or
+#     new-line in the shapefile name (Script 1 reads it from there).
+#   - Control is drawn thicker and dashed. "Buffer" and "Outside Control" are
+#     left out of the AUC plots.
+#   - Zone panels are ordered Dune, Transition, Swale where the zone labels
+#     include those names (Mallee sites); other sites keep the metadata order.
+#   - AUC plots carry a caption explaining how the values are calculated.
 #   - dplyr::select() is called explicitly throughout to avoid masking by
 #     the raster package if loaded in the same session.
 #
@@ -49,6 +51,8 @@
 # Modified: June 2026 — added facet-by-treatment plots (1c, 2c) with
 #                        control reference line; added dplyr:: prefix to
 #                        select() calls to avoid raster package masking
+# Modified: Oct 2026 — removed the facet-by-treatment plots (1c, 2c);
+#                        AUC bars ranked by AUC; Mallee zone order; AUC captions
 # =============================================================================
 # =============================================================================
 
@@ -68,7 +72,7 @@ suppressPackageStartupMessages({
 # =============================================================================
 year_of_analysis <- 2026
 
-site_number_input <- 8  # 1 through 8
+site_number_input <- 6  # 1 through 8
 
 # =============================================================================
 # SITE LOOKUP TABLE
@@ -656,7 +660,7 @@ p3a <- ggplot(auc_treat,
     subtitle = paste0(year_of_analysis, " season | All treatments"),
     x        = "AUC (NDVI-days)",
     y        = NULL,
-    caption  = "AUC = area under the NDVI growth curve (trapezoidal rule).\nHigher values indicate greater cumulative canopy greenness across the season,\nreflecting both peak NDVI and duration of green cover.\nMean NDVI is the average of all pixels in each treatment; replicate strips are pooled."   # <<< CHANGED: new last line
+    caption  = "AUC = area under the NDVI growth curve (trapezoidal rule).\nHigher values indicate greater cumulative canopy greenness across the season,\nreflecting both peak NDVI and duration of green cover.\nMean NDVI is the average of all pixels in each treatment; replicate strips are pooled.\nAUC covers sowing to harvest, or to the latest image if harvest has not yet occurred."   # <<< CHANGED: new last line
   ) +
   theme_ndvi() +
   theme(panel.grid.major.y = element_blank())
@@ -695,7 +699,7 @@ p3b <- ggplot(auc_zone,
     subtitle = paste0(year_of_analysis, " season | Faceted by soil zone"),
     x        = "AUC (NDVI-days)",
     y        = NULL,
-    caption  = "AUC = area under the NDVI growth curve (trapezoidal rule).\nHigher values indicate greater cumulative canopy greenness across the season,\nreflecting both peak NDVI and duration of green cover.\nMean NDVI is the average of all pixels in each treatment x zone; replicate strips are pooled."   # <<< CHANGED: new last line
+    caption  = "AUC = area under the NDVI growth curve (trapezoidal rule).\nHigher values indicate greater cumulative canopy greenness across the season,\nreflecting both peak NDVI and duration of green cover.\nMean NDVI is the average of all pixels in each treatment x zone; replicate strips are pooled.\nAUC covers sowing to harvest, or to the latest image if harvest has not yet occurred"   # <<< CHANGED: new last line
   ) +
     
   theme_ndvi() +

@@ -2,24 +2,45 @@
 # SCRIPT 4: Shiny App Data Packaging — af-sandysoils-ii
 # =============================================================================
 # Purpose:
-#   Collects the analysis outputs produced by Scripts 1–3 from their deep
-#   nested site folders on the CSIRO network drive and assembles them into
-#   a single flat folder (shiny_app_data/) ready to transfer to the CSIRO
-#   Shiny server.
+#   Collects the analysis outputs produced by Scripts 1–2 from their deep
+#   nested site folders on the project drive ({af-sandysoils-ii}) and copies
+#   them into the flat folder the Shiny app reads
+#   ({ss-output1-app-data}/work/Output-1/shiny_app_data, the U: drive).
+#   There is no separate transfer step.
 #
 #   Also exports a single site_metadata.csv from the project Excel file,
-#   replacing the three sheets (treatment names, zone_details, seasons) that
-#   the Shiny app would otherwise need direct access to.
+#   replacing the sheets (treatment names, zone_details, seasons) that the
+#   Shiny app would otherwise need direct access to. The "Comment" column of
+#   the "seasons" sheet becomes season_note, and Script 4 adds
+#   "Latest image: dd Mon yyyy" to it, read from the Script 1 CSVs.
 #
 # What this script does NOT do:
-#   - Re-run any analysis (Scripts 1–3 must already be complete for all sites)
+#   - Re-run any analysis (Scripts 1–2 must already be complete for all sites)
 #   - Modify any files in the original folder structure
-#   - Transfer files to the server (that step is manual — see end of script)
+#   - Copy the Word/PDF documents: these are edited by hand in
+#     shiny_app_data/docs (User Guide, Metadata, Copyright/Disclaimer, logos)
+#
+# Before running:
+#   - Excel metadata saved and closed (treatment names, zone details, seasons
+#     with sowing/harvest dates and Comment notes, and shapefile locations).
+#   - Treatment names in each trial plan shapefile must match the metadata
+#     exactly (no trailing spaces or new-lines), or the app map will show
+#     strips without colours.
+#
+# Safety features:
+#   - Backs up the current app data folder first (skips if today's backup
+#     exists; set do_backup <- FALSE for quick re-runs).
+#   - Each shapefile folder is cleared and only the file named in the metadata
+#     is copied, so stale shapefiles cannot sit beside the new one. The script
+#     checks there is exactly one .shp per folder and prints [CHECK] if not.
+#   - site_metadata.csv only lists site x year combinations that are packaged
+#     (set in site_lookup, e.g. Bonanza has 2026 only).
 #
 # Inputs (per site, from existing folder structure):
 #   - <site_name>_NDVI_treatment_only_DAP.csv       (required)
 #   - <site_name>_NDVI_treatment_zone_DAP.csv        (required)
 #   - <site_name>_NDVI_stack.tif                     (optional)
+#   - Plot PNGs from Script 2                        (optional)
 #   - Shapefiles (paths read from metadata Excel, sheet "file location etc"):
 #       boundary_shapefile
 #       trial.plan
@@ -31,6 +52,7 @@
 # Outputs (all written to shiny_app_data/):
 #   shiny_app_data/
 #   ├── site_metadata.csv
+#   ├── docs/            (edited by hand, not touched by this script)
 #   └── <site_name>/
 #       ├── <year>/
 #       │   ├── <site_name>_NDVI_treatment_only_DAP.csv
@@ -38,10 +60,8 @@
 #       │   ├── <site_name>_NDVI_stack.tif              (if present)
 #       │   ├── <site_name>_growth_curve_treatment.png
 #       │   ├── <site_name>_growth_curve_zone.png
-#       │   ├── <site_name>_growth_curve_by_treatment.png
 #       │   ├── <site_name>_cumulative_ndvi_treatment.png
 #       │   ├── <site_name>_cumulative_ndvi_zone.png
-#       │   ├── <site_name>_cumulative_ndvi_by_treatment.png
 #       │   ├── <site_name>_AUC_treatment.png
 #       │   └── <site_name>_AUC_zone.png
 #       └── shapefiles/
@@ -50,12 +70,17 @@
 #           └── zones/
 #
 # Usage:
-#   Run chunk by chunk in RStudio. Each section prints a progress summary.
-#   Re-run Script 4 any time Scripts 1–3 have been updated for any site.
+#   Run top to bottom in RStudio (the backup runs first and takes a few
+#   minutes). Each section prints a progress summary; the final summary should
+#   show 0 required items missing and no [CHECK] lines.
+#   Re-run Script 4 any time Scripts 1–2 or the metadata have been updated.
+#   If only the metadata changed, running Chunk 3 alone is enough.
 #
-# Transfer to Shiny server (run manually after this script completes):
-#   rsync -av shiny_app_data/ <your-username>@shiny.csiro.au:/srv/shiny-server/sandysoils/data/
-#   OR copy the shiny_app_data/ folder manually via the CSIRO file transfer tool.
+# After running:
+#   The app reads site_metadata.csv ONCE, when the app starts. Plots, CSVs and
+#   shapefiles update straight away, but season notes, treatment names and
+#   zone labels only change after the app restarts (or has been idle long
+#   enough to restart). Ask IT for a restart if it still shows old metadata.
 #
 # Author:  Jackie Ouzman, CSIRO Agriculture & Food
 # Project: af-sandysoils-ii
@@ -63,11 +88,22 @@
 # Modified: June 2026 — added growth_curve_by_treatment.png and
 #                        cumulative_ndvi_by_treatment.png (faceted by
 #                        treatment with Control as reference line)
+# Modified: Oct 2026 — by_treatment PNGs removed; backup added; shapefile
+#                        folders cleared before copying and checked for one
+#                        .shp each; site_metadata drops site x year combinations
+#                        not packaged (e.g. Bonanza 2025) and adds
+#                        "Latest image: dd Mon yyyy" to season_note; data now
+#                        written directly to the app folder on the U: drive
+# =============================================================================
 # =============================================================================
 #  BACKUP
 # =============================================================================
 # START: back up the current app data before anything is overwritten
 do_backup <- TRUE    # set to FALSE for quick re-runs once today's backup exists
+
+# <<< NEW: define the paths here so this block runs on its own, before Chunk 1
+proj_dir_app_data <- "//fs1-cbr.nexus.csiro.au/{ss-output1-app-data}"
+output_root <- file.path(proj_dir_app_data, "work", "Output-1", "shiny_app_data")
 
 if (do_backup) {
   bak_root <- file.path(proj_dir_app_data, "work", "Output-1",
@@ -276,6 +312,39 @@ site_metadata <- treat_meta %>%
                 sowing_date, harvest_date, season_note) %>%
   arrange(site_name, Year, treat, zone)
 
+# <<< NEW: keep only site x year combinations that are actually packaged
+# (drops e.g. Bonanza 2025, which has no trial and would show an empty year in the app)
+valid_site_years <- dplyr::bind_rows(lapply(seq_len(nrow(site_lookup)), function(i)
+  data.frame(Site = site_lookup$site_number[i], Year = site_lookup$years[[i]])))
+site_metadata <- site_metadata %>% dplyr::semi_join(valid_site_years, by = c("Site", "Year"))
+
+# <<< NEW: add "Latest image: dd Mon yyyy" to the season note (read from the Script 1 CSVs)
+latest_img <- dplyr::bind_rows(lapply(seq_len(nrow(site_lookup)), function(i) {
+  dplyr::bind_rows(lapply(site_lookup$years[[i]], function(yr) {
+    f <- file.path(proj_dir, "work", "Output-1", site_lookup$site_number[i],
+                   "7.In_Season_data", substr(as.character(yr), 3, 4),
+                   "8.Sentinel_QGIS_Jackie", "Growth_curves_output",
+                   paste0(site_lookup$site_name[i], "_NDVI_treatment_only_DAP.csv"))
+    if (!file.exists(f)) return(NULL)
+    data.frame(Site = site_lookup$site_number[i], Year = yr,
+               last_img = max(as.Date(read.csv(f)$date)))
+  }))
+}))
+
+site_metadata <- site_metadata %>%
+  dplyr::left_join(latest_img, by = c("Site", "Year")) %>%
+  dplyr::mutate(
+    season_note = as.character(season_note),
+    img_text    = ifelse(is.na(last_img), NA_character_,
+                         paste0("Latest image: ", format(last_img, "%d %b %Y"))),
+    season_note = dplyr::case_when(
+      is.na(img_text)                        ~ season_note,
+      is.na(season_note) | season_note == "" ~ img_text,
+      TRUE                                   ~ paste(season_note, img_text, sep = " | ")
+    )
+  ) %>%
+  dplyr::select(-last_img, -img_text)
+
 cat("Combined metadata rows:", nrow(site_metadata), "\n")
 cat("Sites represented:", n_distinct(site_metadata$site_name), "\n")
 
@@ -350,6 +419,11 @@ copy_shapefile <- function(src_shp_path, dest_folder) {
   
   dir.create(dest_folder, recursive = TRUE, showWarnings = FALSE)
   
+  # <<< NEW: don't clear the destination unless the source .shp really exists
+  if (!file.exists(paste0(base, ".shp"))) {
+    return(list(status = "MISSING - source .shp not found", files_copied = 0))
+  }
+  
   # <<< NEW: remove any old files so stale shapefiles can't sit beside the new one
   old_files <- list.files(dest_folder, full.names = TRUE)
   if (length(old_files) > 0) file.remove(old_files)
@@ -369,6 +443,10 @@ copy_shapefile <- function(src_shp_path, dest_folder) {
       cat("      [MISSING]", basename(src_file), "\n")
     }
   }
+  
+  # <<< NEW: check exactly one .shp ended up in the app folder
+  n_shp <- length(list.files(dest_folder, pattern = "\\.shp$", ignore.case = TRUE))
+  if (n_shp != 1) cat("      [CHECK] expected 1 .shp in", dest_folder, "but found", n_shp, "\n")
   
   if (n_missing > 0) {
     list(status = "MISSING - incomplete shapefile", files_copied = n_copied)

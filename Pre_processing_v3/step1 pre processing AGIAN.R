@@ -21,6 +21,8 @@
 #   - Zone shapefile:       path from metadata sheet "file location etc",
 #                           variable == "location of zone shp"
 #   - Sowing date:          metadata sheet "seasons", column "Sowing date"
+#   - Harvest date:         metadata sheet "seasons", column "Harvest date"
+#                           (optional — see "Date window" below)
 #
 # Outputs (both saved to Growth_curves_output/):
 #   1. <site_name>_NDVI_treatment_zone_DAP.csv
@@ -33,6 +35,26 @@
 #      Use for: plots of treatments only (no zone split)
 #      Note: mean_ndvi here is extracted directly from pixels within each
 #      treatment strip — NOT an average of zone means — so it is unbiased.
+#
+#   3. <site_name>_NDVI_stack.tif  (clipped NDVI raster stack, all dates,
+#      used by the app for the NDVI base map)
+#
+# Date window (Oct 2026):
+#   The CSVs and the AUC use only images from sowing (DAP >= 0) to harvest.
+#   If the harvest date is blank in the "seasons" sheet (current season, not
+#   yet harvested), all images up to the latest available are used, so
+#   in-season AUC is "to date". The clipped raster stack keeps all dates.
+#
+# Strip filtering (updated Oct 2026):
+#   - Buffer strips (any treat or treat_desc containing "buff", any case) are
+#     excluded in Sub-steps 1D and 1G.
+#   - If the trial plan has a Yr_Treat column, only strips with Yr_Treat = "All"
+#     or the analysis year are kept ("Nil" and other years are dropped).
+#   - In Sub-step 1D, strips are dissolved by treatment x zone before
+#     extraction, so split or replicate pieces are pooled.
+#   - treat_desc in the shapefile must match the metadata "treatment names"
+#     sheet exactly (no trailing spaces or new-lines), or colours will not match
+#     in Script 2 and the app.
 #
 # Nodata handling:
 #   Some Sentinel-2 tile exports use -999 for nodata (tile-edge pixels
@@ -54,12 +76,8 @@
 #   reported, since a subfolder may contain a mix of older mis-georeferenced
 #   exports and newer correct ones from the same QGIS tool.
 #
-# Known outstanding issue (flagged, not yet fixed):
-#   The Buffer-strip filter checks for treat != "Buffer", but the actual
-#   value in the trial plan shapefile is "BUFF" — so buffer strips are NOT
-#   currently being excluded from either output file (Sub-steps 1D and 1G).
-#   Confirmed present in Crystal_Brook_Brians_House outputs, Aug 2026.
-#   Fix (when ready): change "Buffer" to "BUFF" in both filter() calls below.
+# Before running: Script 0 (pre-check) confirms the Sentinel download is
+#   complete and the NDVI TIFs are in the NDVI subfolder.
 #
 # Author:  Jackie Ouzman, CSIRO Agriculture & Food
 # Project: af-sandysoils-ii
@@ -68,6 +86,8 @@
 # Modified: Aug 2026 — switched from pre-built stack to NDVI subfolder +
 #           trial-plan overlap check, after mis-georeferenced stack found
 #           for Walpeup_Gums
+# Modified: Oct 2026 — Yr_Treat filter, dissolve by treatment x zone, buffer
+#           filter fix, sowing-to-harvest window (harvest date from metadata)
 # =============================================================================
 # =============================================================================
 
@@ -89,7 +109,7 @@ suppressPackageStartupMessages({
 # =============================================================================
 year_of_analysis <- 2026
 
-site_number_input <- 8 # 1 through 8
+site_number_input <- 6 # 1 through 8
 
 # =============================================================================
 # SITE LOOKUP TABLE
@@ -355,6 +375,25 @@ cat("Sowing date:", format(plant_date), "\n")
 dap_vec <- as.numeric(img_dates - plant_date)
 cat("DAP values:", paste(dap_vec, collapse = ", "), "\n")
 
+# --- Harvest date (optional): AUC stops here. If blank, all images are used ---
+harvest_col <- grep("harvest", names(seasons), ignore.case = TRUE, value = TRUE)[1]
+harvest_dap <- Inf
+if (!is.na(harvest_col)) {
+  hv_raw <- seasons[[harvest_col]][1]
+  harvest_date <- if (is.na(hv_raw)) {
+    as.Date(NA)
+  } else if (inherits(hv_raw, "Date") || inherits(hv_raw, "POSIXct")) {
+    as.Date(hv_raw)
+  } else if (is.numeric(hv_raw)) {
+    as.Date(hv_raw, origin = "1899-12-30")
+  } else {
+    as.Date(lubridate::parse_date_time(trimws(as.character(hv_raw)),
+                                       orders = c("dmy", "ymd", "mdy"), quiet = TRUE))
+  }
+  if (!is.na(harvest_date)) harvest_dap <- as.numeric(harvest_date - plant_date)
+}
+cat("Harvest column:", harvest_col, "| AUC cut-off DAP:", harvest_dap, "(Inf = use all images)\n")
+
 # =============================================================================
 # SUB-STEP 1C: READ ZONE SHAPEFILE
 # =============================================================================
@@ -443,6 +482,7 @@ ndvi_long <- cbind(poly_attrs, extracted[, -1, drop = FALSE]) %>%
     site = site_name,
     zone = as.character(zone)
   ) %>%
+  dplyr::filter(DAP >= 0, DAP <= harvest_dap) %>%   # sowing to harvest (or last image)
   arrange(treat, zone, date)
 
 cat("Rows in treatment x zone data:", nrow(ndvi_long), "\n")
@@ -454,7 +494,7 @@ cat("Rows in treatment x zone data:", nrow(ndvi_long), "\n")
 cat("\n--- SUB-STEP 1F: Calculating AUC (treatment x zone) ---\n")
 
 trap_auc <- function(dap, ndvi) {
-  ok   <- !is.na(ndvi) & !is.na(dap)
+  ok   <- !is.na(ndvi) & !is.na(dap) & dap >= 0 & dap <= harvest_dap   # sowing to harvest (or last image)
   dap  <- dap[ok]; ndvi <- ndvi[ok]
   if (length(dap) < 2) return(NA_real_)
   ord  <- order(dap)
@@ -511,6 +551,7 @@ ndvi_treat_long <- cbind(
     site = site_name,
     zone = "all"          # sentinel value: no zone split
   ) %>%
+  dplyr::filter(DAP >= 0, DAP <= harvest_dap) %>%   # sowing to harvest (or last image)
   arrange(treat, date)
 
 cat("Rows in treatment-only data:", nrow(ndvi_treat_long), "\n")
