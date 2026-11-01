@@ -231,11 +231,11 @@ ui <- fluidPage(
     )
   ),
   
-  # --- Map full width ---
+  # --- Map (full width, height follows the browser window) ---
   fluidRow(
     column(
       width = 12,
-      leafletOutput("map", height = "600px")
+      leafletOutput("map", height = "75vh")
     )
   ),
   
@@ -484,10 +484,11 @@ server <- function(input, output, session) {
         )
     }
     
-    # --- Zoom to site ---
-    if (!is.null(boundary)) {
-      boundary_wgs84 <- sf::st_transform(boundary, crs = 4326)
-      bbox           <- sf::st_bbox(boundary_wgs84)
+    # --- Zoom to the trial strips (falls back to the boundary) ---
+    zoom_layer <- if (!is.null(trial_plan)) trial_plan else boundary
+    if (!is.null(zoom_layer)) {
+      zoom_wgs84 <- sf::st_transform(zoom_layer, crs = 4326)
+      bbox       <- sf::st_bbox(zoom_wgs84)
       
       proxy <- proxy %>%
         flyToBounds(
@@ -598,7 +599,16 @@ server <- function(input, output, session) {
     if (!is.null(trial_plan)) {
       
       trial_wgs84 <- sf::st_transform(trial_plan, crs = 4326) %>%
-        dplyr::filter(treat != "Buffer") %>%
+        dplyr::filter(treat != "Buffer")
+      
+      # Keep only strips that apply to the selected year
+      if ("Yr_Treat" %in% names(trial_wgs84) && !is.null(input$year)) {
+        trial_wgs84 <- trial_wgs84 %>%
+          dplyr::filter(tolower(trimws(as.character(Yr_Treat))) %in%
+                          c("all", as.character(input$year)))
+      }
+      
+      trial_wgs84 <- trial_wgs84 %>%
         left_join(colours, by = c("treat", "treat_desc"))
       
       treat_pal <- colorFactor(
@@ -620,7 +630,7 @@ server <- function(input, output, session) {
           group       = "Treatments"
         ) %>%
         addLegend(
-          position = "bottomright",
+          position = "topright",
           colors   = colours$hex,
           labels   = colours$treat_desc,
           title    = "Treatment",
