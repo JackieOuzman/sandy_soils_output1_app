@@ -202,7 +202,14 @@ ui <- fluidPage(
       width = 3,
       conditionalPanel(
         condition = "input.basemap == 'ndvi'",
-        uiOutput("ndvi_date_ui")
+        uiOutput("ndvi_date_ui"),
+        radioButtons(
+          inputId  = "ndvi_scale",
+          label    = "Colour scale",
+          choices  = c("Whole season"    = "season",
+                       "This image only" = "image"),
+          selected = "season"
+        )
       )
     )
   ),
@@ -548,11 +555,22 @@ server <- function(input, output, session) {
           
           r_wgs84 <- terra::project(r_layer, "EPSG:4326")
           
-          # Use seasonal domain if available, fall back to fixed global domain
+          # Colour scale: whole season (default) or stretched to this image
           domain_to_use <- if (!is.null(session$userData$ndvi_domain)) {
             session$userData$ndvi_domain
           } else {
             ndvi_domain   # your fixed c(-0.2, 0.8)
+          }
+          scale_note <- paste0("Scale fitted to ", input$year, " season")
+          
+          if (identical(input$ndvi_scale, "image")) {
+            img_min <- terra::global(r_layer, "min", na.rm = TRUE)[1, 1]
+            img_max <- terra::global(r_layer, "max", na.rm = TRUE)[1, 1]
+            # Only use it if the image has a usable range
+            if (is.finite(img_min) && is.finite(img_max) && img_min != img_max) {
+              domain_to_use <- c(img_min, img_max)
+              scale_note    <- "Scale fitted to this image"
+            }
           }
           
           ndvi_pal <- colorNumeric(
@@ -574,7 +592,7 @@ server <- function(input, output, session) {
               values   = domain_to_use,
               title    = paste0("NDVI<br>", input$ndvi_date, 
                                 "<br><span style='font-size:10px; font-weight:normal; color:#666;'>",
-                                "Scale fitted to ", input$year, " season</span>"),
+                                scale_note, "</span>"),
               opacity  = 0.8
             )
         }
