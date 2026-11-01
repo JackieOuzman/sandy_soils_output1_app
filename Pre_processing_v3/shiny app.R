@@ -400,9 +400,19 @@ server <- function(input, output, session) {
     req(input$site)
     zone_label_lookup %>%
       dplyr::filter(site_name == input$site) %>%
-      dplyr::select(zone, zone_label, zone_hex) %>%
+     dplyr::select(zone, zone_label, zone_hex) %>%
       mutate(zone = as.character(zone)) %>%
-      distinct()
+      distinct() -> zl
+    
+    # List Dune first, then Transition, then Swale (sites with these labels).
+    # Any other labels keep their metadata order, after these three.
+    keys <- c("Dune", "Transition", "Swale")
+    rnk  <- vapply(zl$zone_label, function(l) {
+      m <- which(vapply(keys, grepl, logical(1), x = l, ignore.case = TRUE))
+      if (length(m)) as.integer(m[1]) else 99L
+    }, integer(1))
+    
+    zl[order(rnk), ]
   })
   
   # --- Season info bar ---
