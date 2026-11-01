@@ -30,6 +30,12 @@ library(raster)
 proj_dir_app_data <- "//fs1-cbr.nexus.csiro.au/{ss-output1-app-data}" 
 output_root <-  file.path(proj_dir_app_data,"work", "Output-1", "shiny_app_data")
 data_dir <-output_root
+
+# Serve data and docs folders (must be registered here, not inside server(),
+# so the logo and PDF links work when the page first loads)
+addResourcePath("plots", data_dir)
+addResourcePath("docs", file.path(data_dir, "docs"))
+
 #data_dir <- "H:/Output-1/shiny_app_data"
 #data on the internal server (this need to be changed to new Bowen)
 #data_dir <- "/datasets/work/sc-shiny/work/live_apps/Jackie_Ouzman/SSII_Output1_NDVI_App/shiny_app_data"
@@ -104,7 +110,8 @@ ndvi_domain <- c(-0.2, 0.8)
 ui <- fluidPage(
   
   tags$head(
-    tags$style(HTML("html { scroll-behavior: smooth; }"))
+    tags$style(HTML("html { scroll-behavior: smooth; }
+                     .leaflet-container { background: #ffffff; }"))
   ),
   # --- Google Analytics tracking (only fires on an actual Shiny server) ---
   if (Sys.getenv('SHINY_PORT') != "") {
@@ -285,9 +292,7 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
-  # Serve the data directory as a static resource path
-  addResourcePath("plots", data_dir)
-  addResourcePath("docs", file.path(data_dir, "docs"))
+ 
   
   # --- Dynamic year dropdown ---
   output$year_ui <- renderUI({
@@ -471,10 +476,7 @@ server <- function(input, output, session) {
           options  = providerTileOptions(maxZoom = 20)
         )
     } else if (input$basemap == "none") {
-      proxy <- proxy %>%
-        addProviderTiles(
-          provider = providers$CartoDB.PositronNoLabels
-        )
+      # No tiles: plain white background (avoids the CARTO API key watermark)
     } else {
       proxy <- proxy %>%
         addProviderTiles(
