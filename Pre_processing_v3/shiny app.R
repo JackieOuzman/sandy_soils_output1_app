@@ -634,6 +634,10 @@ server <- function(input, output, session) {
         levels  = colours$treat_desc
       )
       
+      # Legend lists only the treatments drawn for this year
+      legend_cols <- colours %>%
+        dplyr::filter(treat_desc %in% trial_wgs84$treat_desc)
+      
       fill_opacity <- ifelse(input$basemap %in% c("ndvi", "zones"), 0, 0.4)
       strip_colour <- ifelse(input$basemap %in% c("ndvi", "zones"), "black", "white")
       
@@ -649,8 +653,8 @@ server <- function(input, output, session) {
         ) %>%
         addLegend(
           position = "topright",
-          colors   = colours$hex,
-          labels   = colours$treat_desc,
+          colors   = legend_cols$hex,
+          labels   = legend_cols$treat_desc,
           title    = "Treatment",
           opacity  = 0.8
         )
