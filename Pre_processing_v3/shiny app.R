@@ -46,8 +46,8 @@ addResourcePath("docs", file.path(data_dir, "docs"))
 
 site_metadata <- read.csv(file.path(data_dir, "site_metadata.csv"),
                           stringsAsFactors = FALSE) %>%
-  mutate(sowing_date  = as.Date(sowing_date),
-         harvest_date = as.Date(harvest_date)) %>%
+  mutate(sowing_date  = as.Date(sowing_date,  tryFormats = c("%Y-%m-%d", "%d/%m/%Y")),
+         harvest_date = as.Date(harvest_date, tryFormats = c("%Y-%m-%d", "%d/%m/%Y"))) %>%
   dplyr::filter(!is.na(site_name)) %>%
   mutate(display_name = case_when(
     site_name == "Walpeup_MRS125"             ~ "Walpeup MRS125",
