@@ -29,7 +29,16 @@ library(raster)
 #App data now is copied over to new bowen dirctory which is just for NDVI app data
 proj_dir_app_data <- "//fs1-cbr.nexus.csiro.au/{ss-output1-app-data}" 
 output_root <-  file.path(proj_dir_app_data,"work", "Output-1", "shiny_app_data")
-data_dir <-output_root
+
+# Data folder: Windows network path on your computer, Linux path on the server
+candidate_dirs <- c(
+  output_root,
+  "/datasets/work/ss-output1-app-data/work/Output-1/shiny_app_data"  # CHECK this server path
+)
+data_dir <- candidate_dirs[dir.exists(candidate_dirs)][1]
+if (is.na(data_dir)) {
+  stop("App data folder not found. Checked: ", paste(candidate_dirs, collapse = " | "))
+}
 
 # Serve data and docs folders (must be registered here, not inside server(),
 # so the logo and PDF links work when the page first loads)
